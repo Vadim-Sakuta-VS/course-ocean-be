@@ -10,8 +10,8 @@ export const getDatabaseConfig = (
   host: configService.get<string>('POSTGRES_HOST'),
   port: Number(configService.get<string>('POSTGRES_PORT')),
   database: configService.get<string>('POSTGRES_DB'),
-  migrations: ['./src/migrations/*.ts'],
+  migrations: ['./dist/migrations/*.js'],
   autoLoadEntities: true,
   logging: true,
-  synchronize: true,
+  synchronize: false,
 });
