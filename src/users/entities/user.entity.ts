@@ -33,8 +33,8 @@ export class UserEntity {
   @Column({ type: 'varchar', length: '100', unique: true })
   email: string;
 
-  @Column({ name: 'hashed_password', type: 'varchar', length: '100' })
-  hashedPassword: string;
+  @Column({ type: 'varchar', length: '100' })
+  password: string;
 
   @Column({
     name: 'avatar_url',

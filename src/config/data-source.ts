@@ -1,7 +1,7 @@
 import { DataSource } from 'typeorm';
-import dotenv from 'dotenv';
+import { loadDotenv } from '../common/utils/dotenv';
 
-dotenv.config({ path: ['.env', '.env.local'], override: true });
+loadDotenv();
 
 export default new DataSource({
   type: 'postgres',
