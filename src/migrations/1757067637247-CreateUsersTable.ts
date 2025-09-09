@@ -29,7 +29,6 @@ export class CreateUsersTable1757067637247 implements MigrationInterface {
             name: 'last_name',
             type: 'varchar',
             length: '100',
-            isNullable: false,
           },
           {
             name: 'email',
@@ -150,10 +149,12 @@ export class CreateUsersTable1757067637247 implements MigrationInterface {
           {
             name: 'ip_address',
             type: 'inet',
+            isNullable: true,
           },
           {
-            name: 'device_info',
+            name: 'user_agent_info',
             type: 'jsonb',
+            isNullable: true,
           },
           {
             name: 'created_at',

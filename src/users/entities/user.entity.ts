@@ -33,6 +33,18 @@ export class UserEntity {
   @Column({ type: 'varchar', length: '100', unique: true })
   email: string;
 
+  @Column({ name: 'is_email_verified', type: 'boolean', default: false })
+  isEmailVerified: boolean;
+
+  @Column({
+    name: 'email_verification_token',
+    type: 'varchar',
+    length: '100',
+    nullable: true,
+    default: 'NULL',
+  })
+  emailVerificationToken: boolean;
+
   @Column({ type: 'varchar', length: '100' })
   password: string;
 
@@ -47,6 +59,7 @@ export class UserEntity {
   @Column({
     name: 'account_deletion_date',
     type: 'timestamp',
+    nullable: true,
     default: 'NULL',
   })
   accountDeletionDate: string;

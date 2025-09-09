@@ -8,7 +8,7 @@ import {
 import { UserEntity } from '../../users/entities/user.entity';
 
 @Entity('user-otp')
-export class UsersOTPEntity {
+export class UserOTPEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
