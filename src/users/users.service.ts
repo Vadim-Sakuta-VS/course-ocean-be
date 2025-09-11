@@ -55,4 +55,13 @@ export class UsersService {
 
     return user;
   }
+
+  async updateEmailVerificationToken(userId: string, token: string) {
+    const result = await this.usersRepository.update(
+      { id: userId },
+      { emailVerificationToken: token },
+    );
+
+    return !!result.affected;
+  }
 }

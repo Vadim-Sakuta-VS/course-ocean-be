@@ -43,7 +43,7 @@ export class CreateUsersTable1757067637247 implements MigrationInterface {
           },
           {
             name: 'email_verification_token',
-            type: 'boolean',
+            type: 'text',
             isNullable: true,
             default: 'NULL',
           },

@@ -38,12 +38,11 @@ export class UserEntity {
 
   @Column({
     name: 'email_verification_token',
-    type: 'varchar',
-    length: '100',
+    type: 'text',
     nullable: true,
     default: 'NULL',
   })
-  emailVerificationToken: boolean;
+  emailVerificationToken: string;
 
   @Column({ type: 'varchar', length: '100' })
   password: string;

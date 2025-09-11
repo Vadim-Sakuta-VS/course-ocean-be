@@ -17,11 +17,13 @@ import { __IS_PROD__ } from '../config/constants';
 import { MailerService } from '../mailer/mailer.service';
 import { verifyEmailTemplate } from '../../email-templates/verify-email.template';
 import { TransactionService } from '../common/services/transaction.service';
+import { JwtTokenType } from './types';
 
 @Injectable()
 export class AuthService {
   private static JWT_ACCESS_TOKEN_EXPIRATION_TIME: ms.StringValue;
   private static JWT_REFRESH_TOKEN_EXPIRATION_TIME: ms.StringValue;
+  private static EMAIL_VERIFICATION_TOKEN_EXPIRATION_TIME: ms.StringValue;
   private static BCRYPT_HASH_SALT: number;
 
   constructor(
@@ -42,6 +44,10 @@ export class AuthService {
     AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME =
       this.configService.getOrThrow<ms.StringValue>(
         'JWT_REFRESH_TOKEN_EXPIRATION_TIME',
+      );
+    AuthService.EMAIL_VERIFICATION_TOKEN_EXPIRATION_TIME =
+      this.configService.getOrThrow<ms.StringValue>(
+        'EMAIL_VERIFICATION_TOKEN_EXPIRATION_TIME',
       );
     AuthService.BCRYPT_HASH_SALT =
       +this.configService.getOrThrow<string>('BCRYPT_HASH_SALT');
@@ -83,12 +89,11 @@ export class AuthService {
           secure: __IS_PROD__,
           maxAge: ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
         });
-        this.mailerService.sendEmail(user.email, 'Email address confirmation', {
-          html: verifyEmailTemplate,
-          context: {
-            verifyEmailUrl: 'http://localhost:5000/todo',
-          },
+
+        this.requestEmailVerification(user).catch((err) => {
+          console.error('Failed to request email verification', err);
         });
+
         return {
           accessToken: tokens.accessToken,
         };
@@ -96,16 +101,60 @@ export class AuthService {
     );
   }
 
+  private async requestEmailVerification(
+    user: Pick<UserEntity, 'id' | 'email' | 'roles'>,
+  ) {
+    const emailVerificationToken = await this.generateToken(
+      {
+        id: user.id,
+        email: user.email,
+        roles: user.roles,
+        type: JwtTokenType.EMAIL_VERIFICATION,
+      },
+      AuthService.EMAIL_VERIFICATION_TOKEN_EXPIRATION_TIME,
+    );
+    const isEmailVerificationTokenUpdated =
+      await this.usersService.updateEmailVerificationToken(
+        user.id,
+        emailVerificationToken,
+      );
+    if (isEmailVerificationTokenUpdated) {
+      const info = await this.mailerService.sendEmail(
+        user.email,
+        'Email address confirmation',
+        {
+          html: verifyEmailTemplate,
+          context: {
+            verifyEmailUrl: `http://localhost:5000/todo?token=${emailVerificationToken}`,
+          },
+        },
+      );
+
+      return { success: info.success };
+    }
+
+    return { success: false };
+  }
+
   private async generateTokens({ id, email, roles }: UserEntity) {
     const payload = { id, email, roles };
-    const accessToken = await this.jwtService.signAsync(payload, {
-      expiresIn: AuthService.JWT_ACCESS_TOKEN_EXPIRATION_TIME,
-    });
-    const refreshToken = await this.jwtService.signAsync(payload, {
-      expiresIn: AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME,
-    });
+    const accessToken = await this.generateToken(
+      { ...payload, type: JwtTokenType.ACCESS },
+      AuthService.JWT_ACCESS_TOKEN_EXPIRATION_TIME,
+    );
+    const refreshToken = await this.generateToken(
+      { ...payload, type: JwtTokenType.REFRESH },
+      AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME,
+    );
 
     return { accessToken, refreshToken };
+  }
+
+  private async generateToken(
+    payload: Record<string, any>,
+    expiresIn: string | number,
+  ) {
+    return await this.jwtService.signAsync(payload, { expiresIn });
   }
 
   private async getHashString(value: string) {
