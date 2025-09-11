@@ -14,6 +14,9 @@ import { UAParser } from 'ua-parser-js';
 import { UserSessionsEntity } from './entities/user-sessions.entity';
 import ms from 'ms';
 import { __IS_PROD__ } from '../config/constants';
+import { MailerService } from '../mailer/mailer.service';
+import { verifyEmailTemplate } from '../../email-templates/verify-email.template';
+import { TransactionService } from '../common/services/transaction.service';
 
 @Injectable()
 export class AuthService {
@@ -25,10 +28,12 @@ export class AuthService {
     private usersService: UsersService,
     private jwtService: JwtService,
     private configService: ConfigService,
+    private mailerService: MailerService,
     @InjectRepository(UserOTPEntity)
     private userOTPRepository: Repository<UserOTPEntity>,
     @InjectRepository(UserSessionsEntity)
     private userSessionsRepository: Repository<UserSessionsEntity>,
+    private transactionService: TransactionService,
   ) {
     AuthService.JWT_ACCESS_TOKEN_EXPIRATION_TIME =
       this.configService.getOrThrow<ms.StringValue>(
@@ -47,31 +52,48 @@ export class AuthService {
     res: Response,
     { firstName, lastName, email, password }: CreateUserDto,
   ) {
-    const clientMetadata = this.getClientMetadata(req);
-    const hashedPassword = await this.getHashString(password);
-    const user = await this.usersService.create({
-      firstName,
-      lastName,
-      email,
-      password: hashedPassword,
-    });
-    const tokens = await this.generateTokens(user);
-    const userSession = this.userSessionsRepository.create({
-      user,
-      ipAddress: clientMetadata.ipAddress,
-      userAgentInfo: clientMetadata.userAgentInfo,
-      token: await this.getHashString(tokens.refreshToken),
-      expiresAt: new Date(
-        Date.now() + ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
-      ),
-    } as Partial<UserSessionsEntity>);
-    await this.userSessionsRepository.save(userSession);
-    res.cookie('sessionId', userSession.id, {
-      httpOnly: true,
-      secure: __IS_PROD__,
-      maxAge: ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
-    });
-    return { accessToken: tokens.accessToken };
+    return this.transactionService.runInTransaction(
+      async (transactionEntityManger) => {
+        const clientMetadata = this.getClientMetadata(req);
+        const hashedPassword = await this.getHashString(password);
+        const user = await this.usersService.create(
+          {
+            firstName,
+            lastName,
+            email,
+            password: hashedPassword,
+          },
+          transactionEntityManger,
+        );
+        const tokens = await this.generateTokens(user);
+        const userSessionsRepository =
+          transactionEntityManger.getRepository(UserSessionsEntity);
+        const userSession = userSessionsRepository.create({
+          user,
+          ipAddress: clientMetadata.ipAddress,
+          userAgentInfo: clientMetadata.userAgentInfo,
+          token: await this.getHashString(tokens.refreshToken),
+          expiresAt: new Date(
+            Date.now() + ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
+          ),
+        } as Partial<UserSessionsEntity>);
+        await userSessionsRepository.save(userSession);
+        res.cookie('sessionId', userSession.id, {
+          httpOnly: true,
+          secure: __IS_PROD__,
+          maxAge: ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
+        });
+        this.mailerService.sendEmail(user.email, 'Email address confirmation', {
+          html: verifyEmailTemplate,
+          context: {
+            verifyEmailUrl: 'http://localhost:5000/todo',
+          },
+        });
+        return {
+          accessToken: tokens.accessToken,
+        };
+      },
+    );
   }
 
   private async generateTokens({ id, email, roles }: UserEntity) {
@@ -82,20 +104,6 @@ export class AuthService {
     const refreshToken = await this.jwtService.signAsync(payload, {
       expiresIn: AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME,
     });
-
-    // res.cookie('refreshToken', refreshToken, {
-    //   httpOnly,
-    //   maxAge,
-    //   domain,
-    //   encode,
-    //   path,
-    //   expires,
-    //   priority,
-    //   secure,
-    //   signed,
-    //   sameSite,
-    //   partitioned,
-    // });
 
     return { accessToken, refreshToken };
   }

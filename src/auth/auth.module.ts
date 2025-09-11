@@ -8,6 +8,7 @@ import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UserEntity } from '../users/entities/user.entity';
 import { UserSessionsEntity } from './entities/user-sessions.entity';
+import { TransactionService } from '../common/services/transaction.service';
 
 @Module({
   imports: [
@@ -21,6 +22,6 @@ import { UserSessionsEntity } from './entities/user-sessions.entity';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, UsersService],
+  providers: [AuthService, UsersService, TransactionService],
 })
 export class AuthModule {}

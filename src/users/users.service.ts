@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserEntity } from './entities/user.entity';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { CreateUserDto } from './dto/create-user.dto';
 
 @Injectable()
@@ -15,19 +15,25 @@ export class UsersService {
     private usersRepository: Repository<UserEntity>,
   ) {}
 
-  async create({ firstName, lastName, email, password }: CreateUserDto) {
-    const user = await this.usersRepository.findOne({ where: { email } });
+  async create(
+    { firstName, lastName, email, password }: CreateUserDto,
+    transactionEntityManger?: EntityManager,
+  ): Promise<UserEntity> {
+    const usersRepository = transactionEntityManger
+      ? transactionEntityManger.getRepository(UserEntity)
+      : this.usersRepository;
+    const user = await usersRepository.findOne({ where: { email } });
     if (user) {
       throw new ConflictException(`User already exists with email ${email}`);
     }
 
-    const newUser = this.usersRepository.create({
+    const newUser = usersRepository.create({
       firstName,
       lastName,
       email,
       password,
     });
-    await this.usersRepository.save(newUser);
+    await usersRepository.save(newUser);
 
     return newUser;
   }
