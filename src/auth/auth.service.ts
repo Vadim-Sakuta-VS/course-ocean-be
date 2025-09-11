@@ -1,7 +1,11 @@
-import { Injectable } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserOTPEntity } from './entities/user-otp.entity';
-import { Repository } from 'typeorm';
+import { EntityManager, Repository } from 'typeorm';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
@@ -18,9 +22,11 @@ import { MailerService } from '../mailer/mailer.service';
 import { verifyEmailTemplate } from '../../email-templates/verify-email.template';
 import { TransactionService } from '../common/services/transaction.service';
 import { JwtTokenType } from './types';
+import { LoginDto } from './dto/login.dto';
 
 @Injectable()
 export class AuthService {
+  public static USER_SESSION_COOKIE_KEY = 'sessionId';
   private static JWT_ACCESS_TOKEN_EXPIRATION_TIME: ms.StringValue;
   private static JWT_REFRESH_TOKEN_EXPIRATION_TIME: ms.StringValue;
   private static EMAIL_VERIFICATION_TOKEN_EXPIRATION_TIME: ms.StringValue;
@@ -60,9 +66,8 @@ export class AuthService {
   ) {
     return this.transactionService.runInTransaction(
       async (transactionEntityManger) => {
-        const clientMetadata = this.getClientMetadata(req);
         const hashedPassword = await this.getHashString(password);
-        const user = await this.usersService.create(
+        const user = await this.usersService.createNew(
           {
             firstName,
             lastName,
@@ -71,25 +76,12 @@ export class AuthService {
           },
           transactionEntityManger,
         );
-        const tokens = await this.generateTokens(user);
-        const userSessionsRepository =
-          transactionEntityManger.getRepository(UserSessionsEntity);
-        const userSession = userSessionsRepository.create({
+        const tokens = await this.createUserSession(
+          req,
+          res,
           user,
-          ipAddress: clientMetadata.ipAddress,
-          userAgentInfo: clientMetadata.userAgentInfo,
-          token: await this.getHashString(tokens.refreshToken),
-          expiresAt: new Date(
-            Date.now() + ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
-          ),
-        } as Partial<UserSessionsEntity>);
-        await userSessionsRepository.save(userSession);
-        res.cookie('sessionId', userSession.id, {
-          httpOnly: true,
-          secure: __IS_PROD__,
-          maxAge: ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
-        });
-
+          transactionEntityManger,
+        );
         this.requestEmailVerification(user).catch((err) => {
           console.error('Failed to request email verification', err);
         });
@@ -99,6 +91,71 @@ export class AuthService {
         };
       },
     );
+  }
+
+  async login(req: Request, res: Response, { email, password }: LoginDto) {
+    const user = await this.usersService.findOneByEmail(email);
+    const isPasswordsEqual = await bcrypt.compare(password, user.password);
+    if (!isPasswordsEqual) {
+      throw new BadRequestException('Incorrect email or password');
+    }
+    try {
+      await this.logout(
+        res,
+        req.cookies[AuthService.USER_SESSION_COOKIE_KEY] as string,
+      );
+    } catch (error) {
+      console.log(`login: Failed to logout ${error}`);
+    }
+    const tokens = await this.createUserSession(req, res, user);
+    return {
+      accessToken: tokens.accessToken,
+    };
+  }
+
+  private async createUserSession(
+    req: Request,
+    res: Response,
+    user: UserEntity,
+    transactionEntityManger?: EntityManager,
+  ) {
+    const userSessionsRepository = transactionEntityManger
+      ? transactionEntityManger.getRepository(UserSessionsEntity)
+      : this.userSessionsRepository;
+    const clientMetadata = this.getClientMetadata(req);
+    const tokens = await this.generateTokens(user);
+    const userSession = userSessionsRepository.create({
+      user,
+      ipAddress: clientMetadata.ipAddress,
+      userAgentInfo: clientMetadata.userAgentInfo,
+      token: await this.getHashString(tokens.refreshToken),
+      expiresAt: new Date(
+        Date.now() + ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
+      ),
+    } as Partial<UserSessionsEntity>);
+    await userSessionsRepository.save(userSession);
+    res.cookie(AuthService.USER_SESSION_COOKIE_KEY, userSession.id, {
+      httpOnly: true,
+      secure: __IS_PROD__,
+      maxAge: ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
+    });
+    return tokens;
+  }
+
+  async logout(res: Response, userSessionId: string) {
+    try {
+      if (userSessionId) {
+        await this.userSessionsRepository.update(
+          { id: userSessionId },
+          { isRevoked: true },
+        );
+      }
+      res.clearCookie(AuthService.USER_SESSION_COOKIE_KEY);
+      return { success: true };
+    } catch (error) {
+      console.error(`Logout failed`, error);
+      throw new InternalServerErrorException('Error');
+    }
   }
 
   private async requestEmailVerification(

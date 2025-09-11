@@ -15,7 +15,7 @@ export class UsersService {
     private usersRepository: Repository<UserEntity>,
   ) {}
 
-  async create(
+  async createNew(
     { firstName, lastName, email, password }: CreateUserDto,
     transactionEntityManger?: EntityManager,
   ): Promise<UserEntity> {
