@@ -2,10 +2,11 @@ import {
   ConflictException,
   Injectable,
   InternalServerErrorException,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { UserOTPEntity } from './entities/user-otp.entity';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, MoreThan, Repository } from 'typeorm';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UsersService } from '../users/users.service';
 import { JwtService } from '@nestjs/jwt';
@@ -156,6 +157,26 @@ export class AuthService {
       console.error(`Logout failed`, error);
       throw new InternalServerErrorException('Error');
     }
+  }
+
+  async refresh(userSessionId: string) {
+    if (!userSessionId) {
+      throw new UnauthorizedException();
+    }
+    const userSession = await this.userSessionsRepository.findOne({
+      where: {
+        id: userSessionId,
+        expiresAt: MoreThan(new Date()),
+        isRevoked: false,
+      },
+      relations: { user: true },
+    });
+    if (!userSession) {
+      throw new UnauthorizedException();
+    }
+    const tokens = await this.generateTokens(userSession.user);
+
+    return { accessToken: tokens.accessToken };
   }
 
   private async requestEmailVerification(

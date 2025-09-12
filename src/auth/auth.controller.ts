@@ -47,4 +47,11 @@ export class AuthController {
   ) {
     return this.authService.logout(res, userSessionId);
   }
+
+  @Public()
+  @HttpCode(HttpStatus.OK)
+  @Post('/refresh')
+  refresh(@Cookies(AuthService.USER_SESSION_COOKIE_KEY) userSessionId: string) {
+    return this.authService.refresh(userSessionId);
+  }
 }
