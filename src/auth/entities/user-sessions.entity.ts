@@ -34,9 +34,9 @@ export class UserSessionsEntity {
   @Column({ name: 'user_agent_info', type: 'jsonb', nullable: true })
   userAgentInfo: IResult;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }

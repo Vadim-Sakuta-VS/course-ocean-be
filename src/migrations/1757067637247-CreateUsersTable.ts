@@ -61,7 +61,7 @@ export class CreateUsersTable1757067637247 implements MigrationInterface {
           },
           {
             name: 'account_deletion_date',
-            type: 'timestamp',
+            type: 'timestamptz',
             isNullable: true,
             default: 'NULL',
           },
@@ -72,12 +72,12 @@ export class CreateUsersTable1757067637247 implements MigrationInterface {
           },
           {
             name: 'created_at',
-            type: 'timestamp',
+            type: 'timestamptz',
             default: 'now()',
           },
           {
             name: 'updated_at',
-            type: 'timestamp',
+            type: 'timestamptz',
             default: 'now()',
           },
         ],
@@ -100,7 +100,7 @@ export class CreateUsersTable1757067637247 implements MigrationInterface {
           },
           {
             name: 'expires_at',
-            type: 'timestamp',
+            type: 'timestamptz',
           },
           {
             name: 'user_id',
@@ -144,7 +144,7 @@ export class CreateUsersTable1757067637247 implements MigrationInterface {
           },
           {
             name: 'expires_at',
-            type: 'timestamp',
+            type: 'timestamptz',
           },
           {
             name: 'ip_address',
@@ -158,12 +158,12 @@ export class CreateUsersTable1757067637247 implements MigrationInterface {
           },
           {
             name: 'created_at',
-            type: 'timestamp',
+            type: 'timestamptz',
             default: 'now()',
           },
           {
             name: 'updated_at',
-            type: 'timestamp',
+            type: 'timestamptz',
             default: 'now()',
           },
         ],

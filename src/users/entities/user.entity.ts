@@ -66,9 +66,9 @@ export class UserEntity {
   @Column({ name: 'is_two_factor_enabled', type: 'boolean', default: false })
   isTwoFactorEnabled: boolean;
 
-  @CreateDateColumn({ name: 'created_at' })
+  @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
-  @UpdateDateColumn({ name: 'updated_at' })
+  @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }
