@@ -9,6 +9,9 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { UserEntity } from '../users/entities/user.entity';
 import { UserSessionsEntity } from './entities/user-sessions.entity';
 import { TransactionService } from '../common/services/transaction.service';
+import { JwtStrategy } from './strategies/jwt.strategy';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Module({
   imports: [
@@ -22,6 +25,12 @@ import { TransactionService } from '../common/services/transaction.service';
     }),
   ],
   controllers: [AuthController],
-  providers: [AuthService, UsersService, TransactionService],
+  providers: [
+    { provide: APP_GUARD, useClass: JwtAuthGuard },
+    AuthService,
+    UsersService,
+    TransactionService,
+    JwtStrategy,
+  ],
 })
 export class AuthModule {}

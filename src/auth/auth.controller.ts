@@ -12,11 +12,13 @@ import type { Request, Response } from 'express';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { LoginDto } from './dto/login.dto';
 import { Cookies } from '../common/decorators/cookies.decorator';
+import { Public } from './decorators/public.decorator';
 
 @Controller('auth')
 export class AuthController {
   constructor(private readonly authService: AuthService) {}
 
+  @Public()
   @Post('/signup')
   signUp(
     @Req() req: Request,
@@ -26,6 +28,7 @@ export class AuthController {
     return this.authService.signUp(req, res, createUserDto);
   }
 
+  @Public()
   @HttpCode(HttpStatus.OK)
   @Post('/login')
   login(

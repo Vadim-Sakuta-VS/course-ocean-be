@@ -1,5 +1,5 @@
 import {
-  BadRequestException,
+  ConflictException,
   Injectable,
   InternalServerErrorException,
 } from '@nestjs/common';
@@ -21,7 +21,7 @@ import { __IS_PROD__ } from '../config/constants';
 import { MailerService } from '../mailer/mailer.service';
 import { verifyEmailTemplate } from '../../email-templates/verify-email.template';
 import { TransactionService } from '../common/services/transaction.service';
-import { JwtTokenType } from './types';
+import { JwtPayload, JwtTokenType } from './types';
 import { LoginDto } from './dto/login.dto';
 
 @Injectable()
@@ -97,7 +97,7 @@ export class AuthService {
     const user = await this.usersService.findOneByEmail(email);
     const isPasswordsEqual = await bcrypt.compare(password, user.password);
     if (!isPasswordsEqual) {
-      throw new BadRequestException('Incorrect email or password');
+      throw new ConflictException('Incorrect email or password');
     }
     try {
       await this.logout(
@@ -207,10 +207,7 @@ export class AuthService {
     return { accessToken, refreshToken };
   }
 
-  private async generateToken(
-    payload: Record<string, any>,
-    expiresIn: string | number,
-  ) {
+  private async generateToken(payload: JwtPayload, expiresIn: string | number) {
     return await this.jwtService.signAsync(payload, { expiresIn });
   }
 
