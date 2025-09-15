@@ -1,5 +1,6 @@
 import {
   ConflictException,
+  ConsoleLogger,
   Injectable,
   InternalServerErrorException,
   UnauthorizedException,
@@ -10,9 +11,7 @@ import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import bcrypt from 'bcrypt';
 import ms from 'ms';
-import requestIp from 'request-ip';
 import { EntityManager, LessThan, MoreThan, Repository } from 'typeorm';
-import { UAParser } from 'ua-parser-js';
 import type { Request, Response } from 'express';
 import { verifyEmailTemplate } from '../../email-templates/verify-email.template';
 import { TransactionService } from '../common/services/transaction.service';
@@ -26,6 +25,7 @@ import { LoginDto } from './dto/login.dto';
 import { UserOTPEntity } from './entities/user-otp.entity';
 import { UserSessionsEntity } from './entities/user-sessions.entity';
 import { JwtPayload, JwtTokenType } from './types';
+import { getClientMetadata } from '../common/utils/clientMetadata';
 
 @Injectable()
 export class AuthService {
@@ -34,6 +34,7 @@ export class AuthService {
   private static JWT_REFRESH_TOKEN_EXPIRATION_TIME: ms.StringValue;
   private static EMAIL_VERIFICATION_TOKEN_EXPIRATION_TIME: ms.StringValue;
   private static BCRYPT_HASH_SALT: number;
+  private logger = new ConsoleLogger(AuthService.name);
 
   constructor(
     private usersService: UsersService,
@@ -68,7 +69,7 @@ export class AuthService {
       { expiresAt: LessThan(new Date()), isRevoked: false },
       { isRevoked: true },
     );
-    console.log(
+    this.logger.log(
       `${result.affected} session${Number(result.affected) > 1 || !result.affected ? 's are' : ' is'} revoked`,
     );
   }
@@ -97,7 +98,7 @@ export class AuthService {
           transactionEntityManger,
         );
         this.requestEmailVerification(user).catch((err) => {
-          console.error('Failed to request email verification', err);
+          this.logger.error('Failed to request email verification', err);
         });
 
         return {
@@ -123,7 +124,7 @@ export class AuthService {
         req.cookies[AuthService.USER_SESSION_COOKIE_KEY] as string,
       );
     } catch (error) {
-      console.log(`login: Failed to logout ${error}`);
+      this.logger.error('login: Failed to logout', error);
     }
     const tokens = await this.createUserSession(req, res, user);
 
@@ -141,7 +142,7 @@ export class AuthService {
     const userSessionsRepository = transactionEntityManger
       ? transactionEntityManger.getRepository(UserSessionsEntity)
       : this.userSessionsRepository;
-    const clientMetadata = this.getClientMetadata(req);
+    const clientMetadata = getClientMetadata(req);
     const tokens = await this.generateTokens(user);
     const userSession = userSessionsRepository.create({
       user,
@@ -174,7 +175,7 @@ export class AuthService {
 
       return { success: true };
     } catch (error) {
-      console.error(`Logout failed`, error);
+      this.logger.error(`Logout failed`, error);
       throw new InternalServerErrorException('Error');
     }
   }
@@ -254,12 +255,5 @@ export class AuthService {
 
   private async getHashString(value: string) {
     return await bcrypt.hash(value, AuthService.BCRYPT_HASH_SALT);
-  }
-
-  private getClientMetadata(req: Request) {
-    const ipAddress = requestIp.getClientIp(req);
-    const userAgentInfo = UAParser(req.headers);
-
-    return { ipAddress, userAgentInfo };
   }
 }

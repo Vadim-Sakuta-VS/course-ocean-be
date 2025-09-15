@@ -1,4 +1,4 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { ConsoleLogger, Injectable, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library/build/src/auth/oauth2client';
 import { google } from 'googleapis';
@@ -19,6 +19,7 @@ export class MailerService implements OnModuleInit {
   private accessToken: string;
   private expiryDate: number;
   private transporter: nodemailer.Transporter<SMTPTransport.SentMessageInfo>;
+  private logger = new ConsoleLogger(MailerService.name);
 
   constructor(private configService: ConfigService) {
     MailerService.SENDER_EMAIL = __IS_PROD__
@@ -52,7 +53,7 @@ export class MailerService implements OnModuleInit {
     }
     this.createTransporter();
 
-    console.log('Email service initialized successfully');
+    this.logger.log('Email service initialized successfully');
   }
 
   private async refreshAccessToken() {
@@ -64,9 +65,9 @@ export class MailerService implements OnModuleInit {
       // Обновляем в памяти, не нужно сохранять каждый раз
       this.oAuth2Client.setCredentials(credentials);
 
-      console.log('Access token refreshed');
+      this.logger.log('Access token refreshed');
     } catch (error) {
-      console.error('Error refreshing token:', error);
+      this.logger.error('Error refreshing token:', error);
       throw new Error('Failed to refresh access token');
     }
   }
@@ -117,7 +118,9 @@ export class MailerService implements OnModuleInit {
       });
 
       if (!__IS_PROD__) {
-        console.log(`Email preview URL: ${nodemailer.getTestMessageUrl(info)}`);
+        this.logger.log(
+          `Email preview URL: ${nodemailer.getTestMessageUrl(info)}`,
+        );
       }
 
       return {
@@ -126,7 +129,7 @@ export class MailerService implements OnModuleInit {
         response: info.response,
       };
     } catch (error) {
-      console.error('Email send error:', error);
+      this.logger.error('Email send error:', error);
       throw new Error('Failed to send email');
     }
   }

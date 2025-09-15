@@ -1,8 +1,9 @@
-import { Module } from '@nestjs/common';
+import { MiddlewareConsumer, Module, NestModule } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
+import { RequestLoggerMiddleware } from './common/middlewares/request-logger.middleware';
 import { getDatabaseConfig } from './config/database.config';
 import { MailerModule } from './mailer/mailer.module';
 import { UsersModule } from './users/users.module';
@@ -24,4 +25,8 @@ import { UsersModule } from './users/users.module';
     MailerModule,
   ],
 })
-export class AppModule {}
+export class AppModule implements NestModule {
+  configure(consumer: MiddlewareConsumer) {
+    consumer.apply(RequestLoggerMiddleware).forRoutes('*');
+  }
+}
