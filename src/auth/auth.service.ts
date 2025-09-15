@@ -6,11 +6,12 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
+import { Cron, CronExpression } from '@nestjs/schedule';
 import { InjectRepository } from '@nestjs/typeorm';
 import bcrypt from 'bcrypt';
 import ms from 'ms';
 import requestIp from 'request-ip';
-import { EntityManager, MoreThan, Repository } from 'typeorm';
+import { EntityManager, LessThan, MoreThan, Repository } from 'typeorm';
 import { UAParser } from 'ua-parser-js';
 import type { Request, Response } from 'express';
 import { verifyEmailTemplate } from '../../email-templates/verify-email.template';
@@ -59,6 +60,17 @@ export class AuthService {
       );
     AuthService.BCRYPT_HASH_SALT =
       +this.configService.getOrThrow<string>('BCRYPT_HASH_SALT');
+  }
+
+  @Cron(CronExpression.EVERY_HOUR)
+  async revokeUsersSessions() {
+    const result = await this.userSessionsRepository.update(
+      { expiresAt: LessThan(new Date()), isRevoked: false },
+      { isRevoked: true },
+    );
+    console.log(
+      `${result.affected} session${Number(result.affected) > 1 || !result.affected ? 's are' : ' is'} revoked`,
+    );
   }
 
   async signUp(
