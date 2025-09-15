@@ -17,6 +17,7 @@ import { verifyEmailTemplate } from '../../email-templates/verify-email.template
 import { TransactionService } from '../common/services/transaction.service';
 import { __IS_PROD__ } from '../config/constants';
 import { MailerService } from '../mailer/mailer.service';
+import { AccessTokenResponseDto } from './dto/access-token-response.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UserEntity } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
@@ -64,7 +65,7 @@ export class AuthService {
     req: Request,
     res: Response,
     { firstName, lastName, email, password }: CreateUserDto,
-  ) {
+  ): Promise<AccessTokenResponseDto> {
     return this.transactionService.runInTransaction(
       async (transactionEntityManger) => {
         const hashedPassword = await this.getHashString(password);
@@ -94,7 +95,11 @@ export class AuthService {
     );
   }
 
-  async login(req: Request, res: Response, { email, password }: LoginDto) {
+  async login(
+    req: Request,
+    res: Response,
+    { email, password }: LoginDto,
+  ): Promise<AccessTokenResponseDto> {
     const user = await this.usersService.findOneByEmail(email);
     const isPasswordsEqual = await bcrypt.compare(password, user.password);
     if (!isPasswordsEqual) {
@@ -162,7 +167,7 @@ export class AuthService {
     }
   }
 
-  async refresh(userSessionId: string) {
+  async refresh(userSessionId: string): Promise<AccessTokenResponseDto> {
     if (!userSessionId) {
       throw new UnauthorizedException();
     }
