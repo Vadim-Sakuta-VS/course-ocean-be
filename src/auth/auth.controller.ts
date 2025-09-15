@@ -7,12 +7,12 @@ import {
   Req,
   Res,
 } from '@nestjs/common';
-import { AuthService } from './auth.service';
 import type { Request, Response } from 'express';
-import { CreateUserDto } from '../users/dto/create-user.dto';
+import { AuthService } from './auth.service';
+import { Public } from './decorators/public.decorator';
 import { LoginDto } from './dto/login.dto';
 import { Cookies } from '../common/decorators/cookies.decorator';
-import { Public } from './decorators/public.decorator';
+import { CreateUserDto } from '../users/dto/create-user.dto';
 
 @Controller('auth')
 export class AuthController {

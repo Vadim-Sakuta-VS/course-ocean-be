@@ -1,17 +1,17 @@
 import { Module } from '@nestjs/common';
-import { AuthService } from './auth.service';
-import { AuthController } from './auth.controller';
-import { TypeOrmModule } from '@nestjs/typeorm';
-import { UserOTPEntity } from './entities/user-otp.entity';
-import { UsersService } from '../users/users.service';
-import { JwtModule } from '@nestjs/jwt';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { APP_GUARD } from '@nestjs/core';
+import { JwtModule } from '@nestjs/jwt';
+import { TypeOrmModule } from '@nestjs/typeorm';
+import { AuthController } from './auth.controller';
+import { AuthService } from './auth.service';
+import { UserOTPEntity } from './entities/user-otp.entity';
+import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { JwtStrategy } from './strategies/jwt.strategy';
 import { UserEntity } from '../users/entities/user.entity';
+import { UsersService } from '../users/users.service';
 import { UserSessionsEntity } from './entities/user-sessions.entity';
 import { TransactionService } from '../common/services/transaction.service';
-import { JwtStrategy } from './strategies/jwt.strategy';
-import { APP_GUARD } from '@nestjs/core';
-import { JwtAuthGuard } from './guards/jwt-auth.guard';
 
 @Module({
   imports: [

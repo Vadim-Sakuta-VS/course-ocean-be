@@ -4,26 +4,26 @@ import {
   InternalServerErrorException,
   UnauthorizedException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { UserOTPEntity } from './entities/user-otp.entity';
-import { EntityManager, MoreThan, Repository } from 'typeorm';
-import { CreateUserDto } from '../users/dto/create-user.dto';
-import { UsersService } from '../users/users.service';
-import { JwtService } from '@nestjs/jwt';
-import { UserEntity } from '../users/entities/user.entity';
 import { ConfigService } from '@nestjs/config';
+import { JwtService } from '@nestjs/jwt';
+import { InjectRepository } from '@nestjs/typeorm';
 import bcrypt from 'bcrypt';
-import type { Request, Response } from 'express';
-import requestIp from 'request-ip';
-import { UAParser } from 'ua-parser-js';
-import { UserSessionsEntity } from './entities/user-sessions.entity';
 import ms from 'ms';
-import { __IS_PROD__ } from '../config/constants';
-import { MailerService } from '../mailer/mailer.service';
+import requestIp from 'request-ip';
+import { EntityManager, MoreThan, Repository } from 'typeorm';
+import { UAParser } from 'ua-parser-js';
+import type { Request, Response } from 'express';
 import { verifyEmailTemplate } from '../../email-templates/verify-email.template';
 import { TransactionService } from '../common/services/transaction.service';
-import { JwtPayload, JwtTokenType } from './types';
+import { __IS_PROD__ } from '../config/constants';
+import { MailerService } from '../mailer/mailer.service';
+import { CreateUserDto } from '../users/dto/create-user.dto';
+import { UserEntity } from '../users/entities/user.entity';
+import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
+import { UserOTPEntity } from './entities/user-otp.entity';
+import { UserSessionsEntity } from './entities/user-sessions.entity';
+import { JwtPayload, JwtTokenType } from './types';
 
 @Injectable()
 export class AuthService {
@@ -109,6 +109,7 @@ export class AuthService {
       console.log(`login: Failed to logout ${error}`);
     }
     const tokens = await this.createUserSession(req, res, user);
+
     return {
       accessToken: tokens.accessToken,
     };
@@ -140,6 +141,7 @@ export class AuthService {
       secure: __IS_PROD__,
       maxAge: ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
     });
+
     return tokens;
   }
 
@@ -152,6 +154,7 @@ export class AuthService {
         );
       }
       res.clearCookie(AuthService.USER_SESSION_COOKIE_KEY);
+
       return { success: true };
     } catch (error) {
       console.error(`Logout failed`, error);

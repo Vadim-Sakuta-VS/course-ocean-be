@@ -1,12 +1,12 @@
 import { Module } from '@nestjs/common';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
-import { getDatabaseConfig } from './config/database.config';
-import { UsersModule } from './users/users.module';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 import { AuthModule } from './auth/auth.module';
+import { getDatabaseConfig } from './config/database.config';
 import { MailerModule } from './mailer/mailer.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [

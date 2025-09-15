@@ -1,6 +1,5 @@
-// scripts/get-refresh-token.ts
-import { google } from 'googleapis';
 import readline from 'readline';
+import { google } from 'googleapis';
 import { loadDotenv } from '../src/common/utils/dotenv';
 
 loadDotenv();

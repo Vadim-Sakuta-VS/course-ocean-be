@@ -1,12 +1,12 @@
 import { Injectable, OnModuleInit } from '@nestjs/common';
-import { google } from 'googleapis';
-import nodemailer from 'nodemailer';
-import { OAuth2Client } from 'google-auth-library/build/src/auth/oauth2client';
 import { ConfigService } from '@nestjs/config';
-import SMTPTransport from 'nodemailer/lib/smtp-transport';
-import { __IS_PROD__ } from '../config/constants';
-import { EmailContentOptions } from './types';
+import { OAuth2Client } from 'google-auth-library/build/src/auth/oauth2client';
+import { google } from 'googleapis';
 import Handlebars from 'handlebars';
+import nodemailer from 'nodemailer';
+import SMTPTransport from 'nodemailer/lib/smtp-transport';
+import { EmailContentOptions } from './types';
+import { __IS_PROD__ } from '../config/constants';
 
 @Injectable()
 export class MailerService implements OnModuleInit {

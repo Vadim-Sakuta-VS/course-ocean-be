@@ -15,6 +15,7 @@ export class TransactionService {
     try {
       const result = await callback(queryRunner.manager);
       await queryRunner.commitTransaction();
+
       return result;
     } catch (error) {
       await queryRunner.rollbackTransaction();
