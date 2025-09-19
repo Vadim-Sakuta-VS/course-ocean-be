@@ -2,9 +2,11 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import { UserProvidersEntity } from '../../auth/entities/user-providers.entity';
 
 export enum UserRole {
   ADMIN = 'ADMIN',
@@ -27,7 +29,13 @@ export class UserEntity {
   @Column({ name: 'first_name', type: 'varchar', length: '100' })
   firstName: string;
 
-  @Column({ name: 'last_name', type: 'varchar', length: '100' })
+  @Column({
+    name: 'last_name',
+    type: 'varchar',
+    length: '100',
+    nullable: true,
+    default: 'NULL',
+  })
   lastName: string;
 
   @Column({ type: 'varchar', length: '100', unique: true })
@@ -44,13 +52,14 @@ export class UserEntity {
   })
   emailVerificationToken: string;
 
-  @Column({ type: 'varchar', length: '100' })
+  @Column({ type: 'varchar', length: '100', nullable: true, default: 'NULL' })
   password: string;
 
   @Column({
     name: 'avatar_url',
     type: 'varchar',
     length: '255',
+    nullable: true,
     default: 'NULL',
   })
   avatarUrl: string;
@@ -65,6 +74,9 @@ export class UserEntity {
 
   @Column({ name: 'is_two_factor_enabled', type: 'boolean', default: false })
   isTwoFactorEnabled: boolean;
+
+  @OneToMany(() => UserProvidersEntity, (userProviders) => userProviders.user)
+  providers: UserProvidersEntity[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

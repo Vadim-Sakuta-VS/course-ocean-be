@@ -21,8 +21,10 @@ import { AccessTokenResponseDto } from './dto/access-token-response.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UserEntity } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
+import { CreateUserProviderDto } from './dto/create-user-provider.dto';
 import { LoginDto } from './dto/login.dto';
 import { UserOTPEntity } from './entities/user-otp.entity';
+import { UserProvidersEntity } from './entities/user-providers.entity';
 import { UserSessionsEntity } from './entities/user-sessions.entity';
 import { JwtPayload, JwtTokenType } from './types';
 import { getClientMetadata } from '../common/utils/clientMetadata';
@@ -108,6 +110,87 @@ export class AuthService {
     );
   }
 
+  async signUpWithProvider(
+    req: Request,
+    res: Response,
+    {
+      email,
+      firstName,
+      lastName,
+      avatarUrl,
+      isEmailVerified,
+      providerType,
+      providerId,
+    }: CreateUserProviderDto,
+  ): Promise<AccessTokenResponseDto> {
+    return await this.transactionService.runInTransaction(
+      async (transactionEntityManger) => {
+        let user = await this.usersService.findOne(
+          { email },
+          transactionEntityManger,
+        );
+        if (!user) {
+          user = await this.usersService.createNewExternal(
+            {
+              email,
+              firstName,
+              lastName,
+              avatarUrl,
+              isEmailVerified,
+            },
+            transactionEntityManger,
+          );
+        }
+        const userProvidersRepository =
+          transactionEntityManger.getRepository(UserProvidersEntity);
+        const provider = user.providers?.find(
+          (provider) =>
+            provider.providerId === providerId &&
+            provider.type === providerType,
+        );
+        // создаем провайдер
+        await userProvidersRepository.save({
+          id: provider?.id,
+          user,
+          providerId,
+          type: providerType,
+        });
+        // удалить провайдер, если изменилась локальная почта
+        await userProvidersRepository
+          .createQueryBuilder()
+          .delete()
+          .where('provider_id = :providerId', { providerId })
+          .andWhere(
+            'EXISTS (SELECT 1 FROM users u WHERE user_id = u.id AND email != :email)',
+            { email },
+          )
+          .execute();
+        try {
+          await this.logout(
+            res,
+            req.cookies[AuthService.USER_SESSION_COOKIE_KEY] as string,
+            transactionEntityManger,
+          );
+        } catch (error) {
+          this.logger.error(
+            'signUpExternal: Failed to logout (revoke session)',
+            error,
+          );
+        }
+        const tokens = await this.createUserSession(
+          req,
+          res,
+          user,
+          transactionEntityManger,
+        );
+
+        return {
+          accessToken: tokens.accessToken,
+        };
+      },
+    );
+  }
+
   async login(
     req: Request,
     res: Response,
@@ -124,7 +207,7 @@ export class AuthService {
         req.cookies[AuthService.USER_SESSION_COOKIE_KEY] as string,
       );
     } catch (error) {
-      this.logger.error('login: Failed to logout', error);
+      this.logger.error('login: Failed to logout (revoke session)', error);
     }
     const tokens = await this.createUserSession(req, res, user);
 
@@ -163,10 +246,17 @@ export class AuthService {
     return tokens;
   }
 
-  async logout(res: Response, userSessionId: string) {
+  async logout(
+    res: Response,
+    userSessionId: string,
+    transactionEntityManger?: EntityManager,
+  ) {
     try {
       if (userSessionId) {
-        await this.userSessionsRepository.update(
+        const userSessionsRepository = transactionEntityManger
+          ? transactionEntityManger?.getRepository(UserSessionsEntity)
+          : this.userSessionsRepository;
+        await userSessionsRepository.update(
           { id: userSessionId },
           { isRevoked: true },
         );
