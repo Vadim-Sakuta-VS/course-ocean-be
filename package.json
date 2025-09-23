@@ -24,7 +24,9 @@
     "migration:up": "npm run typeorm -- migration:run -d ./src/config/data-source.ts",
     "migration:down": "npm run typeorm -- migration:revert -d ./src/config/data-source.ts",
     "google:mailer-refresh-token": "ts-node ./scripts/get-google-mailer-refresh-token.ts",
-    "ethereal:mailer-test-account": "ts-node ./scripts/get-ethereal-mailer-test-account.ts"
+    "ethereal:mailer-test-account": "ts-node ./scripts/get-ethereal-mailer-test-account.ts",
+    "get-hash-string": "ts-node ./scripts/get-hash-string.ts",
+    "admin:create": "ts-node ./scripts/create-admin.ts"
   },
   "dependencies": {
     "@nestjs/common": "^11.0.1",
