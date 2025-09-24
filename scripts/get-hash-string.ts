@@ -9,8 +9,8 @@ const rl = readline.createInterface({
   output: process.stdout,
 });
 
-rl.question('Enter value to get hash: ', async (value) => {
-  const hash = await bcrypt.hash(value, Number(process.env.BCRYPT_HASH_SALT));
+rl.question('Enter value to get hash: ', (value) => {
+  const hash = bcrypt.hashSync(value, Number(process.env.BCRYPT_HASH_SALT));
   console.log(hash);
 
   rl.close();

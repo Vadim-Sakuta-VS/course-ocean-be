@@ -69,5 +69,5 @@ $ npm run start:prod
 | `GITHUB_AUTH_CLIENT_SECRET`                | Github OAuth2 client secret                                       | -       |    ✅     |
 | `EXTERNAL_AUTH_UI_SUCCESS_URL`             | Url of FE app when auth is successful                             | -       |    ✅     |
 | `EXTERNAL_AUTH_UI_ERROR_URL`               | Url of FE app when auth is failed                                 | -       |    ✅     |
-| `SUPER_ADMIN_EMAIL`                        | Email for creating admin                                          | -       |    ✅     |
-| `SUPER_ADMIN_PASSWORD`                     | Password hash for creating admin                                  | -       |    ✅     |
+| `SUPER_ADMIN_EMAIL`                        | Email for creating admin                                          | -       |    ❌     |
+| `SUPER_ADMIN_PASSWORD`                     | Password hash for creating admin                                  | -       |    ❌     |

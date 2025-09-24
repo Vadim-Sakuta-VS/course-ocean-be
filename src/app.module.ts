@@ -5,6 +5,7 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
 import { RequestLoggerMiddleware } from './common/middlewares/request-logger.middleware';
 import { getDatabaseConfig } from './config/database.config';
+import { CoursesModule } from './cources/cources.module';
 import { MailerModule } from './mailer/mailer.module';
 import { UsersModule } from './users/users.module';
 
@@ -23,6 +24,7 @@ import { UsersModule } from './users/users.module';
     UsersModule,
     AuthModule,
     MailerModule,
+    CoursesModule,
   ],
 })
 export class AppModule implements NestModule {
