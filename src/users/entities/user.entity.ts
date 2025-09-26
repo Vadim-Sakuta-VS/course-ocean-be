@@ -7,6 +7,7 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { UserProvidersEntity } from '../../auth/entities/user-providers.entity';
+import { CourseEntity } from '../../cources/entities/course.entity';
 
 export enum UserRole {
   ADMIN = 'ADMIN',
@@ -77,6 +78,9 @@ export class UserEntity {
 
   @OneToMany(() => UserProvidersEntity, (userProviders) => userProviders.user)
   providers: UserProvidersEntity[];
+
+  @OneToMany(() => CourseEntity, (course) => course.author)
+  courses: CourseEntity[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
