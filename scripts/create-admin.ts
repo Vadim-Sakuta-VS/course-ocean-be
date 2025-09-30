@@ -10,7 +10,7 @@ import { UserRole } from '../src/users/entities/user.entity';
     }
 
     await dataSource.initialize();
-    const result = await dataSource.query(
+    const result = await dataSource.query<{ exists: boolean }[]>(
       'SELECT EXISTS(SELECT 1 FROM users WHERE roles @> $1)',
       [[UserRole.ADMIN]],
     );

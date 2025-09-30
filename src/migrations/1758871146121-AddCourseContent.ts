@@ -175,6 +175,7 @@ export class AddCourseContent1758871146121 implements MigrationInterface {
             columnNames: ['course_id'],
             referencedColumnNames: ['id'],
             referencedTableName: 'courses',
+            onDelete: 'CASCADE',
           },
         ],
         checks: [
@@ -240,6 +241,7 @@ export class AddCourseContent1758871146121 implements MigrationInterface {
             columnNames: ['section_content_id'],
             referencedColumnNames: ['id'],
             referencedTableName: 'section_content',
+            onDelete: 'CASCADE',
           },
         ],
         checks: [

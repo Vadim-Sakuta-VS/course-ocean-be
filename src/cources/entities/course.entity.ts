@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { Expose, Type } from 'class-transformer';
+import { Exclude, Expose, Type } from 'class-transformer';
 import {
   Check,
   Column,
@@ -100,6 +100,10 @@ export class CourseEntity {
   @ManyToOne(() => UserEntity, (user) => user.courses, { onDelete: 'SET NULL' })
   @JoinColumn({ name: 'author_id' })
   author: UserEntity;
+
+  @Exclude()
+  @Column({ name: 'author_id' })
+  authorId: string;
 
   @ManyToOne(() => TopicEntity, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'topic_id' })
