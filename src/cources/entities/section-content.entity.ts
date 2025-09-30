@@ -1,3 +1,4 @@
+import { Exclude, Expose, Type } from 'class-transformer';
 import {
   Check,
   Column,
@@ -14,12 +15,15 @@ import { LectureContentEntity } from './lecture-content.entity';
 
 @Entity('section_content')
 export class SectionContentEntity {
+  @Expose()
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 255 })
+  @Expose()
+  @Column({ type: 'varchar', length: 255, nullable: true })
   title: string;
 
+  @Expose()
   @Column({ type: 'smallint' })
   @Check('chk_order_positive', '"order" > 0')
   order: string;
@@ -30,12 +34,18 @@ export class SectionContentEntity {
   @JoinColumn({ name: 'course_id' })
   course: CourseEntity;
 
-  @OneToMany(() => LectureContentEntity, (lecture) => lecture.section)
+  @Expose()
+  @Type(() => LectureContentEntity)
+  @OneToMany(() => LectureContentEntity, (lecture) => lecture.section, {
+    cascade: true,
+  })
   lectures: LectureContentEntity[];
 
+  @Exclude()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
+  @Exclude()
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }

@@ -1,3 +1,4 @@
+import { Exclude, Expose } from 'class-transformer';
 import {
   Check,
   Column,
@@ -12,22 +13,28 @@ import { SectionContentEntity } from './section-content.entity';
 
 @Entity('lecture_content')
 export class LectureContentEntity {
+  @Expose()
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Column({ type: 'varchar', length: 255 })
+  @Expose()
+  @Column({ type: 'varchar', length: 255, nullable: true })
   title: string;
 
-  @Column({ name: 'video_url', type: 'text' })
+  @Expose()
+  @Column({ name: 'video_url', type: 'text', nullable: true })
   videoUrl: string;
 
+  @Expose()
   @Column({ name: 'is_preview_enabled', type: 'boolean', default: false })
   isPreviewEnabled: boolean;
 
-  @Column({ type: 'integer' })
+  @Expose()
+  @Column({ type: 'integer', nullable: true })
   @Check('chk_duration_positive', '"duration" > 0')
   duration: number;
 
+  @Expose()
   @Column({ type: 'smallint' })
   @Check('chk_order_positive', '"order" > 0')
   order: string;
@@ -38,9 +45,11 @@ export class LectureContentEntity {
   @JoinColumn({ name: 'section_content_id' })
   section: SectionContentEntity;
 
+  @Exclude()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
+  @Exclude()
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }

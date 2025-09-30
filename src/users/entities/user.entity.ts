@@ -1,3 +1,4 @@
+import { Exclude, Expose } from 'class-transformer';
 import {
   Column,
   CreateDateColumn,
@@ -16,9 +17,11 @@ export enum UserRole {
 
 @Entity('users')
 export class UserEntity {
+  @Expose()
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
+  @Exclude()
   @Column({
     type: 'enum',
     array: true,
@@ -27,9 +30,11 @@ export class UserEntity {
   })
   roles: UserRole[];
 
+  @Expose()
   @Column({ name: 'first_name', type: 'varchar', length: '100' })
   firstName: string;
 
+  @Expose()
   @Column({
     name: 'last_name',
     type: 'varchar',
@@ -39,12 +44,15 @@ export class UserEntity {
   })
   lastName: string;
 
+  @Expose()
   @Column({ type: 'varchar', length: '100', unique: true })
   email: string;
 
+  @Expose()
   @Column({ name: 'is_email_verified', type: 'boolean', default: false })
   isEmailVerified: boolean;
 
+  @Exclude()
   @Column({
     name: 'email_verification_token',
     type: 'text',
@@ -53,9 +61,11 @@ export class UserEntity {
   })
   emailVerificationToken: string;
 
+  @Exclude()
   @Column({ type: 'varchar', length: '100', nullable: true, default: 'NULL' })
   password: string;
 
+  @Expose()
   @Column({
     name: 'avatar_url',
     type: 'varchar',
@@ -65,6 +75,7 @@ export class UserEntity {
   })
   avatarUrl: string;
 
+  @Exclude()
   @Column({
     name: 'account_deletion_date',
     type: 'timestamp',
@@ -73,18 +84,23 @@ export class UserEntity {
   })
   accountDeletionDate: string;
 
+  @Expose()
   @Column({ name: 'is_two_factor_enabled', type: 'boolean', default: false })
   isTwoFactorEnabled: boolean;
 
+  @Expose()
   @OneToMany(() => UserProvidersEntity, (userProviders) => userProviders.user)
   providers: UserProvidersEntity[];
 
+  @Expose()
   @OneToMany(() => CourseEntity, (course) => course.author)
   courses: CourseEntity[];
 
+  @Expose()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 
+  @Exclude()
   @UpdateDateColumn({ name: 'updated_at', type: 'timestamptz' })
   updatedAt: Date;
 }

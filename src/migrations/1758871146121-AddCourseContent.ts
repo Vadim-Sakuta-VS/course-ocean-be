@@ -56,10 +56,12 @@ export class AddCourseContent1758871146121 implements MigrationInterface {
           {
             name: 'learning_skills',
             type: 'text[]',
+            default: `'{}'`,
           },
           {
             name: 'requirements',
             type: 'text[]',
+            default: `'{}'`,
           },
           {
             name: 'cover_url',
@@ -99,10 +101,12 @@ export class AddCourseContent1758871146121 implements MigrationInterface {
           {
             name: 'created_at',
             type: 'timestamptz',
+            default: 'now()',
           },
           {
             name: 'updated_at',
             type: 'timestamptz',
+            default: 'now()',
           },
         ],
         foreignKeys: [
@@ -145,6 +149,7 @@ export class AddCourseContent1758871146121 implements MigrationInterface {
             name: 'title',
             type: 'varchar',
             length: '255',
+            isNullable: true,
           },
           {
             name: 'order',
@@ -157,10 +162,12 @@ export class AddCourseContent1758871146121 implements MigrationInterface {
           {
             name: 'created_at',
             type: 'timestamptz',
+            default: 'now()',
           },
           {
             name: 'updated_at',
             type: 'timestamptz',
+            default: 'now()',
           },
         ],
         foreignKeys: [
@@ -192,10 +199,12 @@ export class AddCourseContent1758871146121 implements MigrationInterface {
             name: 'title',
             type: 'varchar',
             length: '255',
+            isNullable: true,
           },
           {
             name: 'video_url',
             type: 'text',
+            isNullable: true,
           },
           {
             name: 'is_preview_enabled',
@@ -205,6 +214,7 @@ export class AddCourseContent1758871146121 implements MigrationInterface {
           {
             name: 'duration',
             type: 'integer',
+            isNullable: true,
           },
           {
             name: 'order',
@@ -217,10 +227,12 @@ export class AddCourseContent1758871146121 implements MigrationInterface {
           {
             name: 'created_at',
             type: 'timestamptz',
+            default: 'now()',
           },
           {
             name: 'updated_at',
             type: 'timestamptz',
+            default: 'now()',
           },
         ],
         foreignKeys: [
