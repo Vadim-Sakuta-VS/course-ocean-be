@@ -70,7 +70,7 @@ export class AddCourseContent1758871146121 implements MigrationInterface {
           },
           {
             name: 'price',
-            type: 'numeric(2)',
+            type: 'numeric(8,2)',
             isNullable: true,
           },
           {

@@ -41,6 +41,7 @@ export class LectureContentEntity {
 
   @ManyToOne(() => SectionContentEntity, (section) => section.lectures, {
     onDelete: 'CASCADE',
+    orphanedRowAction: 'delete',
   })
   @JoinColumn({ name: 'section_content_id' })
   section: SectionContentEntity;

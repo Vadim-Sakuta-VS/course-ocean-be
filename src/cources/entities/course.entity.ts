@@ -70,7 +70,16 @@ export class CourseEntity {
   coverUrl: string;
 
   @Expose()
-  @Column({ type: 'numeric', precision: 2, nullable: true })
+  @Column({
+    type: 'numeric',
+    precision: 8,
+    scale: 2,
+    nullable: true,
+    transformer: {
+      to: (value: number) => value,
+      from: (value: string) => (!value ? value : parseFloat(value)),
+    },
+  })
   @Check('chk_price_positive_or_nil', '"price" >= 0')
   price: number;
 

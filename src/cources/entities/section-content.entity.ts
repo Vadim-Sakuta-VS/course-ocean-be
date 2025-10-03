@@ -30,6 +30,7 @@ export class SectionContentEntity {
 
   @ManyToOne(() => CourseEntity, (course) => course.sections, {
     onDelete: 'CASCADE',
+    orphanedRowAction: 'delete',
   })
   @JoinColumn({ name: 'course_id' })
   course: CourseEntity;
