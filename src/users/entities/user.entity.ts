@@ -93,7 +93,7 @@ export class UserEntity {
   providers: UserProvidersEntity[];
 
   @Expose()
-  @OneToMany(() => CourseEntity, (course) => course.author)
+  @OneToMany(() => CourseEntity, (course) => course.author, { cascade: true })
   courses: CourseEntity[];
 
   @Expose()

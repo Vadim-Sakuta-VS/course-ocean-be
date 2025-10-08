@@ -26,7 +26,7 @@ export class SectionContentEntity {
   @Expose()
   @Column({ type: 'smallint' })
   @Check('chk_order_positive', '"order" > 0')
-  order: string;
+  order: number;
 
   @ManyToOne(() => CourseEntity, (course) => course.sections, {
     onDelete: 'CASCADE',

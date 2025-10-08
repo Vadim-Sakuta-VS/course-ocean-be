@@ -37,7 +37,7 @@ export class LectureContentEntity {
   @Expose()
   @Column({ type: 'smallint' })
   @Check('chk_order_positive', '"order" > 0')
-  order: string;
+  order: number;
 
   @ManyToOne(() => SectionContentEntity, (section) => section.lectures, {
     onDelete: 'CASCADE',
