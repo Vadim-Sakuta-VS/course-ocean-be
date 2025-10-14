@@ -160,11 +160,12 @@ export class CoursesService {
     };
   }
 
-  async findOneCourse(id: string, withRelations = false) {
+  private async _findOneCourse(id: string, withRelations = false) {
     const course = await this.coursesRepository.findOne({
       where: { id },
       relations: withRelations
         ? {
+            author: true,
             sections: {
               lectures: true,
             },
@@ -188,9 +189,20 @@ export class CoursesService {
     return course;
   }
 
+  async findOneCourse(id: string, isOnlyActive = true) {
+    const course = await this._findOneCourse(id, true);
+    if (!course.isActive && isOnlyActive) {
+      throw new ForbiddenException();
+    }
+
+    return plainToInstance(CourseResponseDto, course, {
+      excludeExtraneousValues: true,
+    });
+  }
+
   async deleteCourse(userId: string, id: string) {
     // TODO make check if course bought (throw error or do nothing)
-    const course = await this.findOneCourse(id);
+    const course = await this._findOneCourse(id);
     this.checkUserPermission(course, userId);
     const result = await this.coursesRepository.delete({
       id,
@@ -217,9 +229,8 @@ export class CoursesService {
   async patchCourse(userId: string, id: string, dto: PatchCourseOperationsDto) {
     return this.transactionService.runInTransaction(
       async (transactionEntityManger) => {
-        const course = await this.findOneCourse(id, true);
+        const course = await this._findOneCourse(id, true);
         this.checkUserPermission(course, userId);
-        course.author = await this.usersService.findOneById(userId);
         const operations = dto.operations.filter(
           (op) => op.path !== '/isActive',
         );
@@ -253,7 +264,7 @@ export class CoursesService {
   }
 
   async activateCourse(userId: string, id: string) {
-    const course = await this.findOneCourse(id);
+    const course = await this._findOneCourse(id);
     this.checkUserPermission(course, userId);
     course.isActive = true;
     await this.coursesRepository.save(course);
@@ -262,7 +273,7 @@ export class CoursesService {
   }
 
   async deactivateCourse(userId: string, id: string) {
-    const course = await this.findOneCourse(id);
+    const course = await this._findOneCourse(id);
     this.checkUserPermission(course, userId);
     course.isActive = false;
     // TODO make check if course bought (throw error or do nothing)

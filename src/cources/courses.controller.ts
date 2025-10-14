@@ -71,6 +71,25 @@ export class CoursesController {
   }
 
   /**
+   * Find one course by id
+   *
+   * @throws {400} Bad request
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   */
+  @Public()
+  @Get(':id')
+  findOne(
+    @User() user: Express.User,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ): Promise<CourseResponseDto> {
+    return this.coursesService.findOneCourse(
+      id,
+      !user?.roles?.includes(UserRole.ADMIN),
+    );
+  }
+
+  /**
    * Create course draft
    *
    * @throws {400} Bad request
@@ -107,6 +126,7 @@ export class CoursesController {
    * @throws {400} Bad request
    * @throws {401} Unauthorized
    * @throws {403} Forbidden
+   * @throws {404} Not found
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
@@ -124,6 +144,7 @@ export class CoursesController {
    * @throws {400} Bad request
    * @throws {401} Unauthorized
    * @throws {403} Forbidden
+   * @throws {404} Not found
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
@@ -143,6 +164,7 @@ export class CoursesController {
    * @throws {400} Bad request
    * @throws {401} Unauthorized
    * @throws {403} Forbidden
+   * @throws {404} Not found
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
@@ -161,6 +183,7 @@ export class CoursesController {
    * @throws {400} Bad request
    * @throws {401} Unauthorized
    * @throws {403} Forbidden
+   * @throws {404} Not found
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
