@@ -10,7 +10,6 @@ import {
   IsOptional,
   IsPositive,
   IsString,
-  IsUrl,
   IsUUID,
   Max,
   Min,
@@ -28,7 +27,7 @@ export class CreateLectureContentDto {
 
   @Expose()
   @IsOptional()
-  @IsUrl()
+  @IsString()
   videoUrl: string;
 
   @Expose()
@@ -113,7 +112,7 @@ export class CreateCourseDto {
 
   @Expose()
   @IsOptional()
-  @IsUrl()
+  @IsString()
   coverUrl: string;
 
   @Expose()

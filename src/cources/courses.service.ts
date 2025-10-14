@@ -170,14 +170,16 @@ export class CoursesService {
             },
           }
         : undefined,
-      order: {
-        sections: {
-          order: 'ASC',
-          lectures: {
-            order: 'ASC',
-          },
-        },
-      },
+      order: withRelations
+        ? {
+            sections: {
+              order: 'ASC',
+              lectures: {
+                order: 'ASC',
+              },
+            },
+          }
+        : undefined,
     });
     if (!course) {
       throw new NotFoundException(`Course with id ${id} not found`);
@@ -187,6 +189,7 @@ export class CoursesService {
   }
 
   async deleteCourse(userId: string, id: string) {
+    // TODO make check if course bought (throw error or do nothing)
     const course = await this.findOneCourse(id);
     this.checkUserPermission(course, userId);
     const result = await this.coursesRepository.delete({
@@ -198,6 +201,7 @@ export class CoursesService {
   }
 
   async deleteBulkCourses(userId: string, ids: string[]) {
+    // TODO make check if courses bought (throw error or skip such courses)
     const courses = await this.coursesRepository.find({
       where: { id: In(ids) },
     });
@@ -216,9 +220,12 @@ export class CoursesService {
         const course = await this.findOneCourse(id, true);
         this.checkUserPermission(course, userId);
         course.author = await this.usersService.findOneById(userId);
+        const operations = dto.operations.filter(
+          (op) => op.path !== '/isActive',
+        );
         const patchResult = jsonpatch.applyPatch<CourseEntity>(
           jsonpatch.deepClone(course),
-          dto.operations,
+          operations,
         );
         const validationErrors = await validate(
           plainToInstance(PatchedCourseDto, patchResult.newDocument, {
@@ -243,6 +250,25 @@ export class CoursesService {
         });
       },
     );
+  }
+
+  async activateCourse(userId: string, id: string) {
+    const course = await this.findOneCourse(id);
+    this.checkUserPermission(course, userId);
+    course.isActive = true;
+    await this.coursesRepository.save(course);
+
+    return true;
+  }
+
+  async deactivateCourse(userId: string, id: string) {
+    const course = await this.findOneCourse(id);
+    this.checkUserPermission(course, userId);
+    course.isActive = false;
+    // TODO make check if course bought (throw error or do nothing)
+    await this.coursesRepository.save(course);
+
+    return true;
   }
 
   private checkUserPermission(course: CourseEntity, userId: string) {

@@ -3,6 +3,8 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
+  HttpStatus,
   Param,
   ParseUUIDPipe,
   Patch,
@@ -133,5 +135,41 @@ export class CoursesController {
     @Body() dto: PatchCourseOperationsDto,
   ) {
     return this.coursesService.patchCourse(userId, id, dto);
+  }
+
+  /**
+   * Activate draft course
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @Post('/:id/activate')
+  activateCourse(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.coursesService.activateCourse(userId, id);
+  }
+
+  /**
+   * Deactivate course - make it a draft
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @HttpCode(HttpStatus.OK)
+  @Post('/:id/deactivate')
+  deactivateCourse(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+  ) {
+    return this.coursesService.deactivateCourse(userId, id);
   }
 }
