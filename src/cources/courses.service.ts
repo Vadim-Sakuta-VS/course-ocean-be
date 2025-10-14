@@ -9,6 +9,7 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import jsonpatch from 'fast-json-patch';
 import { DeepPartial, In, Repository } from 'typeorm';
+import { COURSE_DURATION_FILTER_SQL_MAP } from './constants';
 import { CourseResponseDto } from './dto/course-response.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { CourseEntity } from './entities/course.entity';
@@ -18,6 +19,12 @@ import {
   PatchCourseOperationsDto,
   PatchedCourseDto,
 } from './dto/patch-course.dto';
+import {
+  CoursePriceFilter,
+  CoursesFilterDto,
+  CourseSorting,
+} from './dto/search-query.dto';
+import { PageableContentDto } from '../auth/dto/pageable-content.dto';
 
 @Injectable()
 export class CoursesService {
@@ -46,6 +53,111 @@ export class CoursesService {
         });
       },
     );
+  }
+
+  async findCourses({
+    creationDateStart,
+    creationDateEnd,
+    categoryIds,
+    subcategoryIds,
+    topicIds,
+    // ratingFrom, TODO make rating filter after adding reviews module
+    // ratingTo,
+    level,
+    duration,
+    price,
+    isActive,
+    size,
+    page,
+    sorting,
+  }: CoursesFilterDto): Promise<PageableContentDto<CourseResponseDto>> {
+    const queryBuilder = this.coursesRepository.createQueryBuilder('c');
+    queryBuilder
+      .innerJoin('c.topic', 't')
+      .innerJoin('t.subcategory', 's')
+      .innerJoin('s.category', 'ct')
+      .leftJoinAndSelect('c.sections', 'sc')
+      .leftJoinAndSelect('sc.lectures', 'lc');
+
+    queryBuilder.where('c.is_active = :isActive', { isActive });
+    if (categoryIds?.length) {
+      queryBuilder.andWhere('ct.id in (:...categoryIds)', { categoryIds });
+    }
+    if (subcategoryIds?.length) {
+      queryBuilder.andWhere('s.id in (:...subcategoryIds)', { subcategoryIds });
+    }
+    if (topicIds?.length) {
+      queryBuilder.andWhere('c.topic_id in (:...topicIds)', { topicIds });
+    }
+    if (level?.length) {
+      queryBuilder.andWhere('c.level in (:...level)', { level });
+    }
+    if (creationDateStart) {
+      queryBuilder.andWhere('c.created_at::date >= :creationDateStart', {
+        creationDateStart,
+      });
+    }
+    if (creationDateEnd) {
+      queryBuilder.andWhere('c.created_at::date <= :creationDateEnd', {
+        creationDateEnd,
+      });
+    }
+    if (
+      [CoursePriceFilter.PAID, CoursePriceFilter.FREE].every((p) =>
+        price?.includes(p),
+      )
+    ) {
+      queryBuilder.andWhere('c.price >= 0');
+    } else if (price?.includes(CoursePriceFilter.FREE)) {
+      queryBuilder.andWhere('c.price = 0 or c.discount = 100');
+    } else if (price?.includes(CoursePriceFilter.PAID)) {
+      queryBuilder.andWhere('c.price > 0 and c.discount != 100');
+    }
+    if (duration?.length) {
+      const durationHavingCondition = duration
+        .map(
+          (durationSearchValue) =>
+            COURSE_DURATION_FILTER_SQL_MAP[durationSearchValue],
+        )
+        .join(' or ');
+      const subQuery = queryBuilder
+        .subQuery()
+        .select('sub_c.id')
+        .from(CourseEntity, 'sub_c')
+        .leftJoin('sub_c.sections', 'sub_sc')
+        .leftJoin('sub_sc.lectures', 'sub_lc')
+        .groupBy('sub_c.id')
+        .having(durationHavingCondition)
+        .getQuery();
+      queryBuilder.andWhere(`c.id IN ${subQuery}`);
+    }
+
+    if (sorting === CourseSorting.NEW) {
+      queryBuilder.orderBy('c.createdAt', 'DESC');
+    } else if (sorting === CourseSorting.LOWEST_PRICE) {
+      queryBuilder.orderBy('c.price', 'ASC');
+    } else if (sorting === CourseSorting.HIGHEST_PRICE) {
+      queryBuilder.orderBy('c.price', 'DESC');
+    } else if (sorting === CourseSorting.POPULAR) {
+      // TODO make after adding reviews and bought user courses
+    }
+
+    queryBuilder.take(size);
+    queryBuilder.skip(size * page);
+
+    const [courses, total] = await queryBuilder.getManyAndCount();
+
+    return {
+      page,
+      size,
+      total,
+      totalPages: Math.ceil(total / size),
+      content: courses.map((course) =>
+        plainToInstance(CourseResponseDto, course, {
+          excludeExtraneousValues: true,
+        }),
+      ),
+    };
   }
 
   async findOneCourse(id: string, withRelations = false) {

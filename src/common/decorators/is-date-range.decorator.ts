@@ -21,7 +21,7 @@ export const IsDateRange = (
             return true;
           }
 
-          return new Date(dateStart) < new Date(dateEnd);
+          return new Date(dateStart) <= new Date(dateEnd);
         },
         defaultMessage(): string {
           return `${dateStartProperty} must be less then ${propertyName}`;
