@@ -8,7 +8,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import jsonpatch from 'fast-json-patch';
-import { DeepPartial, In, Repository } from 'typeorm';
+import { Brackets, DeepPartial, In, Repository } from 'typeorm';
 import { COURSE_DURATION_FILTER_SQL_MAP } from './constants';
 import { CourseResponseDto } from './dto/course-response.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -67,6 +67,7 @@ export class CoursesService {
     duration,
     price,
     isActive,
+    search,
     size,
     page,
     sorting,
@@ -76,6 +77,7 @@ export class CoursesService {
       .innerJoin('c.topic', 't')
       .innerJoin('t.subcategory', 's')
       .innerJoin('s.category', 'ct')
+      .innerJoinAndSelect('c.author', 'a')
       .leftJoinAndSelect('c.sections', 'sc')
       .leftJoinAndSelect('sc.lectures', 'lc');
 
@@ -131,13 +133,34 @@ export class CoursesService {
         .getQuery();
       queryBuilder.andWhere(`c.id IN ${subQuery}`);
     }
+    if (search) {
+      const searchTerm = `%${search}%`;
+      queryBuilder.andWhere(
+        new Brackets((qb) =>
+          qb
+            .where('c.title ilike :searchTerm', { searchTerm })
+            .orWhere('a.first_name ilike :searchTerm', { searchTerm })
+            .orWhere('a.last_name ilike :searchTerm', { searchTerm })
+            .orWhere(
+              "concat(a.first_name, ' ', a.last_name) ilike :searchTerm",
+              { searchTerm },
+            )
+            .orWhere(
+              "concat(a.last_name, ' ', a.first_name) ilike :searchTerm",
+              { searchTerm },
+            ),
+        ),
+      );
+    }
+
+    queryBuilder.orderBy({ 'sc.order': 'ASC', 'lc.order': 'ASC' });
 
     if (sorting === CourseSorting.NEW) {
-      queryBuilder.orderBy('c.createdAt', 'DESC');
+      queryBuilder.addOrderBy('c.createdAt', 'DESC');
     } else if (sorting === CourseSorting.LOWEST_PRICE) {
-      queryBuilder.orderBy('c.price', 'ASC');
+      queryBuilder.addOrderBy('c.price', 'ASC');
     } else if (sorting === CourseSorting.HIGHEST_PRICE) {
-      queryBuilder.orderBy('c.price', 'DESC');
+      queryBuilder.addOrderBy('c.price', 'DESC');
     } else if (sorting === CourseSorting.POPULAR) {
       // TODO make after adding reviews and bought user courses
     }

@@ -7,6 +7,7 @@ import {
   IsEnum,
   IsInt,
   IsOptional,
+  IsString,
   IsUUID,
   Max,
   Min,
@@ -119,6 +120,11 @@ export class CoursesFilterDto {
     return value === '1' || value === 'true';
   })
   isActive: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
+  search: string;
 
   @ApiProperty({ required: false, default: 20 })
   @IsOptional()
