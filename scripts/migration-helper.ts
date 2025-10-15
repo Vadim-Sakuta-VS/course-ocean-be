@@ -10,7 +10,7 @@ if (!name) {
 
 try {
   execSync(
-    `npm run typeorm -- migration:${command} ${command === 'generate' ? name : `./src/migrations/${name}`}${command === 'generate' ? ' -d ./src/config/data-source.ts' : ''}`,
+    `npm run typeorm -- migration:${command} ${command === 'generate' ? name : `./src/db/migrations/${name}`}${command === 'generate' ? ' -d ./src/config/data-source.ts' : ''}`,
     { stdio: 'inherit' },
   );
 } catch {

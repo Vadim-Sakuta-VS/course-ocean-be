@@ -9,7 +9,10 @@ import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import jsonpatch from 'fast-json-patch';
 import { Brackets, DeepPartial, In, Repository } from 'typeorm';
-import { COURSE_DURATION_FILTER_SQL_MAP } from './constants';
+import {
+  COURSE_DURATION_FILTER_SQL_MAP,
+  FIND_COURSE_RELATIONS,
+} from './constants';
 import { CourseResponseDto } from './dto/course-response.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { CourseEntity } from './entities/course.entity';
@@ -30,9 +33,9 @@ import { PageableContentDto } from '../auth/dto/pageable-content.dto';
 export class CoursesService {
   constructor(
     @InjectRepository(CourseEntity)
-    private coursesRepository: Repository<CourseEntity>,
-    private transactionService: TransactionService,
-    private usersService: UsersService,
+    private readonly coursesRepository: Repository<CourseEntity>,
+    private readonly transactionService: TransactionService,
+    private readonly usersService: UsersService,
   ) {}
 
   async create(userId: string, { topicId, ...dto }: CreateCourseDto) {
@@ -186,14 +189,7 @@ export class CoursesService {
   private async _findOneCourse(id: string, withRelations = false) {
     const course = await this.coursesRepository.findOne({
       where: { id },
-      relations: withRelations
-        ? {
-            author: true,
-            sections: {
-              lectures: true,
-            },
-          }
-        : undefined,
+      relations: withRelations ? FIND_COURSE_RELATIONS : undefined,
       order: withRelations
         ? {
             sections: {
