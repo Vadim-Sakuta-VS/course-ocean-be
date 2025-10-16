@@ -6,7 +6,10 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UserOTPEntity } from './entities/user-otp.entity';
+import { UserProvidersEntity } from './entities/user-providers.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { GithubStrategy } from './strategies/github.strategy';
+import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { UserEntity } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
@@ -15,7 +18,12 @@ import { TransactionService } from '../common/services/transaction.service';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserEntity, UserOTPEntity, UserSessionsEntity]),
+    TypeOrmModule.forFeature([
+      UserEntity,
+      UserOTPEntity,
+      UserSessionsEntity,
+      UserProvidersEntity,
+    ]),
     JwtModule.registerAsync({
       imports: [ConfigModule],
       useFactory: (configService: ConfigService) => ({
@@ -31,6 +39,8 @@ import { TransactionService } from '../common/services/transaction.service';
     UsersService,
     TransactionService,
     JwtStrategy,
+    GoogleStrategy,
+    GithubStrategy,
   ],
 })
 export class AuthModule {}

@@ -4,7 +4,8 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import { CreateUserExternalDto } from './dto/create-user-external.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserEntity } from './entities/user.entity';
 
@@ -19,23 +20,51 @@ export class UsersService {
     { firstName, lastName, email, password }: CreateUserDto,
     transactionEntityManger?: EntityManager,
   ): Promise<UserEntity> {
+    return await this.create(
+      { firstName, lastName, email, password },
+      transactionEntityManger,
+    );
+  }
+
+  async createNewExternal(
+    {
+      email,
+      firstName,
+      lastName,
+      avatarUrl,
+      isEmailVerified,
+    }: CreateUserExternalDto,
+    transactionEntityManger?: EntityManager,
+  ) {
+    return await this.create(
+      {
+        firstName,
+        lastName,
+        email,
+        avatarUrl: avatarUrl || undefined,
+        isEmailVerified,
+      },
+      transactionEntityManger,
+    );
+  }
+
+  private async create(
+    payload: Partial<UserEntity>,
+    transactionEntityManger?: EntityManager,
+  ): Promise<UserEntity> {
     const usersRepository = transactionEntityManger
       ? transactionEntityManger.getRepository(UserEntity)
       : this.usersRepository;
-    const user = await usersRepository.findOne({ where: { email } });
+    const user = await usersRepository.findOne({
+      where: { email: payload.email },
+    });
     if (user) {
-      throw new ConflictException(`User already exists with email ${email}`);
+      throw new ConflictException(
+        `User already exists with email ${payload.email}`,
+      );
     }
 
-    const newUser = usersRepository.create({
-      firstName,
-      lastName,
-      email,
-      password,
-    });
-    await usersRepository.save(newUser);
-
-    return newUser;
+    return await usersRepository.save(payload);
   }
 
   async findOneById(id: string): Promise<UserEntity> {
@@ -54,6 +83,20 @@ export class UsersService {
     }
 
     return user;
+  }
+
+  async findOne(
+    where: FindOptionsWhere<UserEntity>,
+    transactionEntityManger?: EntityManager,
+  ): Promise<UserEntity | null> {
+    const usersRepository = transactionEntityManger
+      ? transactionEntityManger.getRepository(UserEntity)
+      : this.usersRepository;
+
+    return await usersRepository.findOne({
+      where,
+      relations: { providers: true },
+    });
   }
 
   async updateEmailVerificationToken(userId: string, token: string) {
