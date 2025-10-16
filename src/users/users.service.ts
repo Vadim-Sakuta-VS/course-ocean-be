@@ -5,11 +5,18 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
-import { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
+import {
+  EntityManager,
+  FindOneOptions,
+  FindOptionsWhere,
+  In,
+  Repository,
+} from 'typeorm';
 import { CreateUserExternalDto } from './dto/create-user-external.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserEntity } from './entities/user.entity';
 import { FIND_COURSE_RELATIONS } from '../cources/constants';
+import { WishListEntity } from './entities/wish-list.entity';
 import { CourseResponseDto } from '../cources/dto/course-response.dto';
 
 @Injectable()
@@ -17,6 +24,8 @@ export class UsersService {
   constructor(
     @InjectRepository(UserEntity)
     private readonly usersRepository: Repository<UserEntity>,
+    @InjectRepository(WishListEntity)
+    private readonly wishListRepository: Repository<WishListEntity>,
   ) {}
 
   async createNew(
@@ -70,8 +79,14 @@ export class UsersService {
     return await usersRepository.save(payload);
   }
 
-  async findOneById(id: string): Promise<UserEntity> {
-    const user = await this.usersRepository.findOne({ where: { id } });
+  async findOneById(
+    id: string,
+    options?: FindOneOptions<UserEntity>,
+  ): Promise<UserEntity> {
+    const user = await this.usersRepository.findOne({
+      ...options,
+      where: { id, ...options?.where },
+    });
     if (!user) {
       throw new NotFoundException(`User with id ${id} not found`);
     }
@@ -121,6 +136,48 @@ export class UsersService {
 
     return (
       user?.cartOrders.map((course) =>
+        plainToInstance(CourseResponseDto, course, {
+          excludeExtraneousValues: true,
+        }),
+      ) || []
+    );
+  }
+
+  async addCoursesToWishList(userId: string, courseIds: string[]) {
+    const result = await this.wishListRepository.upsert(
+      courseIds.map((courseId) => ({ userId, courseId })),
+      {
+        conflictPaths: ['userId', 'courseId'],
+        skipUpdateIfNoValuesChanged: true,
+      },
+    );
+
+    return {
+      ids: (result.identifiers as WishListEntity[]).map(
+        ({ courseId }) => courseId,
+      ),
+    };
+  }
+
+  async deleteCoursesFromWishList(userId: string, courseIds: string[]) {
+    const result = await this.wishListRepository.delete({
+      userId,
+      courseId: In(courseIds),
+    });
+
+    return !!result.affected;
+  }
+
+  async getWishList(userId: string) {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: {
+        wishList: FIND_COURSE_RELATIONS,
+      },
+    });
+
+    return (
+      user?.wishList.map((course) =>
         plainToInstance(CourseResponseDto, course, {
           excludeExtraneousValues: true,
         }),

@@ -112,6 +112,20 @@ export class UserEntity {
   })
   cartOrders: CourseEntity[];
 
+  @ManyToMany(() => CourseEntity)
+  @JoinTable({
+    name: 'wish_list',
+    joinColumn: {
+      name: 'user_id',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'course_id',
+      referencedColumnName: 'id',
+    },
+  })
+  wishList: CourseEntity[];
+
   @Expose()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
