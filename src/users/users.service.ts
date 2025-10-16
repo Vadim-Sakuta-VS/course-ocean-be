@@ -126,23 +126,6 @@ export class UsersService {
     return !!result.affected;
   }
 
-  async getCart(userId: string) {
-    const user = await this.usersRepository.findOne({
-      where: { id: userId },
-      relations: {
-        cartOrders: FIND_COURSE_RELATIONS,
-      },
-    });
-
-    return (
-      user?.cartOrders.map((course) =>
-        plainToInstance(CourseResponseDto, course, {
-          excludeExtraneousValues: true,
-        }),
-      ) || []
-    );
-  }
-
   async addCoursesToWishList(userId: string, courseIds: string[]) {
     const result = await this.wishListRepository.upsert(
       courseIds.map((courseId) => ({ userId, courseId })),
