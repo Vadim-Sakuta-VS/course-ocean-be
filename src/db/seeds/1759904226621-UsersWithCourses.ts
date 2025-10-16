@@ -2,7 +2,7 @@ import bcrypt from 'bcrypt';
 import { DataSource } from 'typeorm';
 import { Seeder } from 'typeorm-extension';
 import { loadDotenv } from '../../common/utils/dotenv';
-import { TopicEntity } from '../../cources/categories/entities/topic.entity';
+import { TopicEntity } from '../../dictionaries/entities/topic.entity';
 import { UserEntity } from '../../users/entities/user.entity';
 
 loadDotenv();

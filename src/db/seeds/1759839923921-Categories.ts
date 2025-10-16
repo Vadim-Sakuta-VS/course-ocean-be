@@ -1,6 +1,6 @@
 import { DataSource } from 'typeorm';
 import { Seeder } from 'typeorm-extension';
-import { CategoryEntity } from '../../cources/categories/entities/category.entity';
+import { CategoryEntity } from '../../dictionaries/entities/category.entity';
 
 export class Categories1759839923921 implements Seeder {
   track = false;

@@ -12,8 +12,8 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import { SectionContentEntity } from './section-content.entity';
+import { TopicEntity } from '../../dictionaries/entities/topic.entity';
 import { UserEntity } from '../../users/entities/user.entity';
-import { TopicEntity } from '../categories/entities/topic.entity';
 
 export enum CourseLevel {
   BEGINNER = 'BEGINNER',

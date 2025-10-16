@@ -18,10 +18,10 @@ import { UpdateTopicDto } from './dto/update-topic.dto';
 import { CategoryEntity } from './entities/category.entity';
 import { SubcategoryEntity } from './entities/subcategory.entity';
 import { TopicEntity } from './entities/topic.entity';
-import { TransactionService } from '../../common/services/transaction.service';
+import { TransactionService } from '../common/services/transaction.service';
 
 @Injectable()
-export class CategoriesService {
+export class DictionariesService {
   constructor(
     @InjectRepository(CategoryEntity)
     private categoriesRepository: Repository<CategoryEntity>,
