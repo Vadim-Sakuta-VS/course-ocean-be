@@ -1,0 +1,167 @@
+import {
+  CopyObjectCommand,
+  DeleteObjectCommand,
+  GetObjectCommand,
+  PutObjectCommand,
+  S3Client,
+} from '@aws-sdk/client-s3';
+import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
+import {
+  ConsoleLogger,
+  Injectable,
+  InternalServerErrorException,
+} from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
+import { v4 as uuidv4 } from 'uuid';
+import { UploadObjectDto } from './dto/upload-object.dto';
+
+@Injectable()
+export class S3Service {
+  private static CLOUDFLARE_R2_PUBLIC_BUCKET: string;
+  private static CLOUDFLARE_R2_PRIVATE_BUCKET: string;
+  private static CLOUDFLARE_R2_PUBLIC_DOMAIN: string;
+  private readonly s3Client: S3Client;
+  private logger = new ConsoleLogger(S3Service.name);
+
+  constructor(configService: ConfigService) {
+    S3Service.CLOUDFLARE_R2_PUBLIC_BUCKET = configService.getOrThrow<string>(
+      'CLOUDFLARE_R2_PUBLIC_BUCKET',
+    );
+    S3Service.CLOUDFLARE_R2_PRIVATE_BUCKET = configService.getOrThrow<string>(
+      'CLOUDFLARE_R2_PRIVATE_BUCKET',
+    );
+    S3Service.CLOUDFLARE_R2_PUBLIC_DOMAIN = configService.getOrThrow<string>(
+      'CLOUDFLARE_R2_PUBLIC_DOMAIN',
+    );
+    this.s3Client = new S3Client({
+      region: 'auto',
+      endpoint: configService.getOrThrow<string>('CLOUDFLARE_R2_ENDPOINT'),
+      credentials: {
+        accessKeyId: configService.getOrThrow<string>(
+          'CLOUDFLARE_R2_ACCESS_KEY_ID',
+        ),
+        secretAccessKey: configService.getOrThrow<string>(
+          'CLOUDFLARE_R2_SECRET_ACCESS_KEY',
+        ),
+      },
+    });
+  }
+
+  async generateUploadUrl({
+    fileName,
+    isPublic,
+    contentType,
+    ttl,
+  }: UploadObjectDto) {
+    try {
+      const fileKey = `${uuidv4()}-${fileName}`;
+      const bucketName = isPublic
+        ? S3Service.CLOUDFLARE_R2_PUBLIC_BUCKET
+        : S3Service.CLOUDFLARE_R2_PRIVATE_BUCKET;
+
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: fileKey,
+        ContentType: contentType,
+      });
+
+      const uploadUrl = await getSignedUrl(this.s3Client, command, {
+        expiresIn: ttl,
+      });
+
+      return {
+        uploadUrl,
+        fileKey,
+      };
+    } catch (error) {
+      this.logger.error(error);
+      throw new InternalServerErrorException(
+        `Failed to generate upload url for object: ${fileName}`,
+      );
+    }
+  }
+
+  private async moveObjectBetweenBuckets(
+    fileKey: string,
+    sourceBucket: string,
+    targetBucket: string,
+  ) {
+    try {
+      const copyCommand = new CopyObjectCommand({
+        CopySource: `${sourceBucket}/${fileKey}`,
+        Bucket: targetBucket,
+        Key: fileKey,
+      });
+      await this.s3Client.send(copyCommand);
+
+      const deleteCommand = new DeleteObjectCommand({
+        Bucket: sourceBucket,
+        Key: fileKey,
+      });
+      await this.s3Client.send(deleteCommand);
+
+      return true;
+    } catch (error) {
+      this.logger.error(error);
+      throw new InternalServerErrorException(
+        `Failed to move object: ${fileKey}`,
+      );
+    }
+  }
+
+  makeObjectPublic(fileKey: string) {
+    return this.moveObjectBetweenBuckets(
+      fileKey,
+      S3Service.CLOUDFLARE_R2_PRIVATE_BUCKET,
+      S3Service.CLOUDFLARE_R2_PUBLIC_BUCKET,
+    );
+  }
+
+  makeObjectPrivate(fileKey: string) {
+    return this.moveObjectBetweenBuckets(
+      fileKey,
+      S3Service.CLOUDFLARE_R2_PUBLIC_BUCKET,
+      S3Service.CLOUDFLARE_R2_PRIVATE_BUCKET,
+    );
+  }
+
+  async deleteObject(fileKey: string, isPublic: boolean) {
+    try {
+      const sourceBucket = isPublic
+        ? S3Service.CLOUDFLARE_R2_PUBLIC_BUCKET
+        : S3Service.CLOUDFLARE_R2_PRIVATE_BUCKET;
+      const deleteCommand = new DeleteObjectCommand({
+        Bucket: sourceBucket,
+        Key: fileKey,
+      });
+      await this.s3Client.send(deleteCommand);
+
+      return true;
+    } catch (error) {
+      this.logger.error(error);
+      throw new InternalServerErrorException(
+        `Failed to delete object: ${fileKey}`,
+      );
+    }
+  }
+
+  async generateViewUrl(fileKey: string, ttl: number = 3600) {
+    try {
+      const command = new GetObjectCommand({
+        Bucket: S3Service.CLOUDFLARE_R2_PRIVATE_BUCKET,
+        Key: fileKey,
+      });
+
+      return await getSignedUrl(this.s3Client, command, { expiresIn: ttl });
+    } catch (error) {
+      this.logger.error(error);
+      throw new InternalServerErrorException(
+        `Failed to generate view url for object: ${fileKey}`,
+      );
+    }
+  }
+
+  getPublicUrl(fileKey: string): string {
+    return `${S3Service.CLOUDFLARE_R2_PUBLIC_DOMAIN}/${fileKey}`;
+  }
+}

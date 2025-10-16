@@ -71,3 +71,9 @@ $ npm run start:prod
 | `EXTERNAL_AUTH_UI_ERROR_URL`               | Url of FE app when auth is failed                                 | -       |    ✅     |
 | `SUPER_ADMIN_EMAIL`                        | Email for creating admin                                          | -       |    ❌     |
 | `SUPER_ADMIN_PASSWORD`                     | Password hash for creating admin                                  | -       |    ❌     |
+| `CLOUDFLARE_R2_ACCESS_KEY_ID`              | Cloudflare access key id                                          | -       |    ✅     |
+| `CLOUDFLARE_R2_SECRET_ACCESS_KEY`          | Cloudflare secret access key                                      | -       |    ✅     |
+| `CLOUDFLARE_R2_PUBLIC_BUCKET`              | Cloudflare bucket name for public content                         | -       |    ✅     |
+| `CLOUDFLARE_R2_PRIVATE_BUCKET`             | Cloudflare bucket name for public content                         | -       |    ✅     |
+| `CLOUDFLARE_R2_ENDPOINT`                   | Cloudflare API endpoint                                           | -       |    ✅     |
+| `CLOUDFLARE_R2_PUBLIC_DOMAIN`              | Public domain connected to public bucket                          | -       |    ✅     |
