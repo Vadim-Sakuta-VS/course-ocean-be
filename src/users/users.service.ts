@@ -4,16 +4,19 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
+import { plainToInstance } from 'class-transformer';
 import { EntityManager, FindOptionsWhere, Repository } from 'typeorm';
 import { CreateUserExternalDto } from './dto/create-user-external.dto';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UserEntity } from './entities/user.entity';
+import { FIND_COURSE_RELATIONS } from '../cources/constants';
+import { CourseResponseDto } from '../cources/dto/course-response.dto';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(UserEntity)
-    private usersRepository: Repository<UserEntity>,
+    private readonly usersRepository: Repository<UserEntity>,
   ) {}
 
   async createNew(
@@ -106,5 +109,22 @@ export class UsersService {
     );
 
     return !!result.affected;
+  }
+
+  async getCart(userId: string) {
+    const user = await this.usersRepository.findOne({
+      where: { id: userId },
+      relations: {
+        cartOrders: FIND_COURSE_RELATIONS,
+      },
+    });
+
+    return (
+      user?.cartOrders.map((course) =>
+        plainToInstance(CourseResponseDto, course, {
+          excludeExtraneousValues: true,
+        }),
+      ) || []
+    );
   }
 }

@@ -1,4 +1,6 @@
+import { FindOptionsRelations } from 'typeorm';
 import { CourseDurationFilter } from '../dto/search-query.dto';
+import { CourseEntity } from '../entities/course.entity';
 
 export const COURSE_DURATION_FILTER_SQL_MAP: Record<
   CourseDurationFilter,
@@ -14,4 +16,11 @@ export const COURSE_DURATION_FILTER_SQL_MAP: Record<
     '(coalesce(sum(sub_lc.duration), 0) >= 18000 and coalesce(sum(sub_lc.duration), 0) <= 36000)',
   [CourseDurationFilter.MORE_TEN_HOURS]:
     'coalesce(sum(sub_lc.duration), 0) >= 36000',
+};
+
+export const FIND_COURSE_RELATIONS: FindOptionsRelations<CourseEntity> = {
+  author: true,
+  sections: {
+    lectures: true,
+  },
 };

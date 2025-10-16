@@ -7,18 +7,19 @@ import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
 import { UserOTPEntity } from './entities/user-otp.entity';
 import { UserProvidersEntity } from './entities/user-providers.entity';
+import { UserSessionsEntity } from './entities/user-sessions.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
 import { GithubStrategy } from './strategies/github.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
-import { UserEntity } from '../users/entities/user.entity';
-import { UsersService } from '../users/users.service';
-import { UserSessionsEntity } from './entities/user-sessions.entity';
 import { TransactionService } from '../common/services/transaction.service';
+import { UserEntity } from '../users/entities/user.entity';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
+    UsersModule,
     TypeOrmModule.forFeature([
       UserEntity,
       UserOTPEntity,
@@ -38,7 +39,6 @@ import { TransactionService } from '../common/services/transaction.service';
     { provide: APP_GUARD, useClass: JwtAuthGuard },
     { provide: APP_GUARD, useClass: RolesGuard },
     AuthService,
-    UsersService,
     TransactionService,
     JwtStrategy,
     GoogleStrategy,

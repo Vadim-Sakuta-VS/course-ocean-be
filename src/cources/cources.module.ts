@@ -7,8 +7,7 @@ import { CourseEntity } from './entities/course.entity';
 import { LectureContentEntity } from './entities/lecture-content.entity';
 import { SectionContentEntity } from './entities/section-content.entity';
 import { TransactionService } from '../common/services/transaction.service';
-import { UserEntity } from '../users/entities/user.entity';
-import { UsersService } from '../users/users.service';
+import { UsersModule } from '../users/users.module';
 
 @Module({
   imports: [
@@ -17,10 +16,10 @@ import { UsersService } from '../users/users.service';
       CourseEntity,
       SectionContentEntity,
       LectureContentEntity,
-      UserEntity,
     ]),
+    UsersModule,
   ],
   controllers: [CoursesController],
-  providers: [CoursesService, TransactionService, UsersService],
+  providers: [CoursesService, TransactionService],
 })
 export class CoursesModule {}

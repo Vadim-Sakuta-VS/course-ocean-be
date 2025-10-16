@@ -3,6 +3,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ScheduleModule } from '@nestjs/schedule';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from './auth/auth.module';
+import { CartModule } from './cart/cart.module';
 import { RequestLoggerMiddleware } from './common/middlewares/request-logger.middleware';
 import { getDatabaseConfig } from './config/database.config';
 import { CoursesModule } from './cources/cources.module';
@@ -22,10 +23,11 @@ import { UsersModule } from './users/users.module';
       inject: [ConfigService],
     }),
     ScheduleModule.forRoot(),
-    UsersModule,
     AuthModule,
+    UsersModule,
     MailerModule,
     CoursesModule,
+    CartModule,
     S3Module,
   ],
 })

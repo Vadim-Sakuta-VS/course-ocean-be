@@ -3,6 +3,8 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  JoinTable,
+  ManyToMany,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
@@ -95,6 +97,20 @@ export class UserEntity {
   @Expose()
   @OneToMany(() => CourseEntity, (course) => course.author, { cascade: true })
   courses: CourseEntity[];
+
+  @ManyToMany(() => CourseEntity)
+  @JoinTable({
+    name: 'cart_orders',
+    joinColumn: {
+      name: 'user_id',
+      referencedColumnName: 'id',
+    },
+    inverseJoinColumn: {
+      name: 'course_id',
+      referencedColumnName: 'id',
+    },
+  })
+  cartOrders: CourseEntity[];
 
   @Expose()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
