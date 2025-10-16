@@ -8,6 +8,7 @@ import { AuthService } from './auth.service';
 import { UserOTPEntity } from './entities/user-otp.entity';
 import { UserProvidersEntity } from './entities/user-providers.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
+import { RolesGuard } from './guards/roles.guard';
 import { GithubStrategy } from './strategies/github.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
@@ -35,6 +36,7 @@ import { TransactionService } from '../common/services/transaction.service';
   controllers: [AuthController],
   providers: [
     { provide: APP_GUARD, useClass: JwtAuthGuard },
+    { provide: APP_GUARD, useClass: RolesGuard },
     AuthService,
     UsersService,
     TransactionService,
