@@ -17,6 +17,7 @@ import { CourseResponseDto } from './dto/course-response.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { CourseEntity } from './entities/course.entity';
 import { LectureContentEntity } from './entities/lecture-content.entity';
+import { SectionContentEntity } from './entities/section-content.entity';
 import { TransactionService } from '../common/services/transaction.service';
 import { UsersService } from '../users/users.service';
 import {
@@ -35,6 +36,10 @@ export class CoursesService {
   constructor(
     @InjectRepository(CourseEntity)
     private readonly coursesRepository: Repository<CourseEntity>,
+    @InjectRepository(SectionContentEntity)
+    private readonly sectionContentRepository: Repository<SectionContentEntity>,
+    @InjectRepository(LectureContentEntity)
+    private readonly lectureContentRepository: Repository<LectureContentEntity>,
     private readonly transactionService: TransactionService,
     private readonly usersService: UsersService,
   ) {}
@@ -365,5 +370,111 @@ export class CoursesService {
     if (course.authorId !== userId) {
       throw new ForbiddenException();
     }
+  }
+
+  async deleteBulkCourseSections(
+    userId: string,
+    courseId: string,
+    sectionsIds: string[],
+  ) {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const result = await this.sectionContentRepository.delete({
+      course: { id: courseId },
+      id: In(sectionsIds),
+    });
+
+    return !!result.affected;
+  }
+
+  async deleteCourseSection(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+  ) {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const result = await this.sectionContentRepository.delete({
+      course: { id: courseId },
+      id: sectionId,
+    });
+
+    return !!result.affected;
+  }
+
+  async deleteBulkCourseLectures(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+    lecturesIds: string[],
+  ) {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const result = await this.lectureContentRepository.delete({
+      section: {
+        id: sectionId,
+        course: { id: courseId },
+      },
+      id: In(lecturesIds),
+    });
+
+    return !!result.affected;
+  }
+
+  async deleteCourseLecture(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+    lectureId: string,
+  ) {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const result = await this.lectureContentRepository.delete({
+      section: {
+        id: sectionId,
+        course: { id: courseId },
+      },
+      id: lectureId,
+    });
+
+    return !!result.affected;
+  }
+
+  async deleteCourseRequirement(
+    userId: string,
+    courseId: string,
+    value: string,
+  ) {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const result = await this.coursesRepository.update(
+      { id: courseId },
+      {
+        requirements: course.requirements.filter(
+          (requirement) => requirement !== value,
+        ),
+      },
+    );
+
+    return !!result.affected;
+  }
+
+  async deleteCourseLearningSkill(
+    userId: string,
+    courseId: string,
+    value: string,
+  ) {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const result = await this.coursesRepository.update(
+      { id: courseId },
+      {
+        learningSkills: course.learningSkills.filter(
+          (learningSkill) => learningSkill !== value,
+        ),
+      },
+    );
+
+    return !!result.affected;
   }
 }

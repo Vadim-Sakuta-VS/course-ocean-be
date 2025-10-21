@@ -27,6 +27,7 @@ import { Roles } from '../auth/decorators/roles.decorator';
 import { PageableContentDto } from '../auth/dto/pageable-content.dto';
 import { User } from '../common/decorators/user.decorator';
 import { IdsDto } from '../common/dto/ids.dto';
+import { StringValueDto } from '../common/dto/string-value.dto';
 import { UserRole } from '../users/entities/user.entity';
 
 @Controller('courses')
@@ -180,6 +181,144 @@ export class CoursesController {
     @Body() dto: PatchCourseOperationsDto,
   ) {
     return this.coursesService.patchCourseViaJsonPatch(userId, id, dto);
+  }
+
+  /**
+   * Delete sections (bulk)
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Delete(':id/sections/bulk')
+  deleteBulkCourseSections(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) courseId: string,
+    @Body() dto: IdsDto,
+  ): Promise<boolean> {
+    return this.coursesService.deleteBulkCourseSections(
+      userId,
+      courseId,
+      dto.ids,
+    );
+  }
+
+  /**
+   * Delete one section by id
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Delete(':id/sections/:sectionId')
+  deleteCourseSection(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) courseId: string,
+    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
+  ): Promise<boolean> {
+    return this.coursesService.deleteCourseSection(userId, courseId, sectionId);
+  }
+
+  /**
+   * Delete lectures (bulk)
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Delete(':id/sections/:sectionId/lectures/bulk')
+  deleteBulkCourseLectures(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) courseId: string,
+    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
+    @Body() dto: IdsDto,
+  ): Promise<boolean> {
+    return this.coursesService.deleteBulkCourseLectures(
+      userId,
+      courseId,
+      sectionId,
+      dto.ids,
+    );
+  }
+
+  /**
+   * Delete one lecture by id
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Delete(':id/sections/:sectionId/lectures/:lectureId')
+  deleteCourseLecture(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) courseId: string,
+    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
+    @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
+  ): Promise<boolean> {
+    return this.coursesService.deleteCourseLecture(
+      userId,
+      courseId,
+      sectionId,
+      lectureId,
+    );
+  }
+
+  /**
+   * Delete one requirement by value
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Delete(':id/requirements')
+  deleteCourseRequirement(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) courseId: string,
+    @Body() dto: StringValueDto,
+  ): Promise<boolean> {
+    return this.coursesService.deleteCourseRequirement(
+      userId,
+      courseId,
+      dto.value,
+    );
+  }
+
+  /**
+   * Delete one learning skill by value
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Delete(':id/learning-skills')
+  deleteCourseLearningSkill(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) courseId: string,
+    @Body() dto: StringValueDto,
+  ): Promise<boolean> {
+    return this.coursesService.deleteCourseLearningSkill(
+      userId,
+      courseId,
+      dto.value,
+    );
   }
 
   /**
