@@ -16,7 +16,10 @@ import { ApiBearerAuth, ApiOkResponse, getSchemaPath } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
 import { CourseResponseDto } from './dto/course-response.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
-import { PatchCourseOperationsDto } from './dto/patch-course.dto';
+import {
+  PatchCourseOperationsDto,
+  PatchedCourseDto,
+} from './dto/patch-course.dto';
 import { CoursesFilterDto } from './dto/search-query.dto';
 import { JsonPatchSyntaxPipe } from './pipes/json-patch-syntax.pipe';
 import { Public } from '../auth/decorators/public.decorator';
@@ -139,7 +142,28 @@ export class CoursesController {
   }
 
   /**
-   * Update course with JSON Patch format
+   * Update course
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Patch(':id')
+  patchCourse(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) id: string,
+    @Body() dto: PatchedCourseDto,
+  ): Promise<CourseResponseDto> {
+    const cleanDto = JSON.parse(JSON.stringify(dto)) as PatchedCourseDto;
+
+    return this.coursesService.patchCourse(userId, id, cleanDto);
+  }
+
+  /**
+   * Update course with JSON Patch format (deprecated)
    *
    * @throws {400} Bad request
    * @throws {401} Unauthorized
@@ -149,13 +173,13 @@ export class CoursesController {
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
   @UsePipes(new JsonPatchSyntaxPipe('operations'))
-  @Patch('/:id')
-  patchCourse(
+  @Patch('/:id/json-patch')
+  patchCourseViaJsonPatch(
     @User('id') userId: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: PatchCourseOperationsDto,
   ) {
-    return this.coursesService.patchCourse(userId, id, dto);
+    return this.coursesService.patchCourseViaJsonPatch(userId, id, dto);
   }
 
   /**

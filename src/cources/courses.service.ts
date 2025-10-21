@@ -16,6 +16,7 @@ import {
 import { CourseResponseDto } from './dto/course-response.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
 import { CourseEntity } from './entities/course.entity';
+import { LectureContentEntity } from './entities/lecture-content.entity';
 import { TransactionService } from '../common/services/transaction.service';
 import { UsersService } from '../users/users.service';
 import {
@@ -119,22 +120,13 @@ export class CoursesService {
       queryBuilder.andWhere('c.price > 0 and c.discount != 100');
     }
     if (duration?.length) {
-      const durationHavingCondition = duration
+      const durationCondition = duration
         .map(
           (durationSearchValue) =>
             COURSE_DURATION_FILTER_SQL_MAP[durationSearchValue],
         )
         .join(' or ');
-      const subQuery = queryBuilder
-        .subQuery()
-        .select('sub_c.id')
-        .from(CourseEntity, 'sub_c')
-        .leftJoin('sub_c.sections', 'sub_sc')
-        .leftJoin('sub_sc.lectures', 'sub_lc')
-        .groupBy('sub_c.id')
-        .having(durationHavingCondition)
-        .getQuery();
-      queryBuilder.andWhere(`c.id IN ${subQuery}`);
+      queryBuilder.andWhere(durationCondition);
     }
     if (search) {
       const searchTerm = `%${search}%`;
@@ -245,7 +237,75 @@ export class CoursesService {
     return !!result.affected;
   }
 
-  async patchCourse(userId: string, id: string, dto: PatchCourseOperationsDto) {
+  async patchCourse(
+    userId: string,
+    id: string,
+    {
+      requirements = [],
+      learningSkills = [],
+      sections = [],
+      ...patchedCourse
+    }: PatchedCourseDto,
+  ) {
+    return this.transactionService.runInTransaction(
+      async (transactionEntityManager) => {
+        const course = await this._findOneCourse(id, true);
+        this.checkUserPermission(course, userId);
+        const resultSections = sections.reduce((accSections, section) => {
+          if (!section.id) {
+            return [...accSections, section];
+          }
+          const sectionIndex = course.sections.findIndex(
+            (s) => s.id === section.id,
+          );
+          accSections[sectionIndex] = {
+            ...accSections[sectionIndex],
+            ...section,
+            lectures: (section.lectures || []).reduce(
+              (accLectures, lecture) => {
+                if (!lecture.id) {
+                  return [...accLectures, lecture];
+                }
+                const lectureIndex = course.sections[
+                  sectionIndex
+                ].lectures.findIndex((l) => l.id === lecture.id);
+
+                accLectures[lectureIndex] = {
+                  ...accLectures[lectureIndex],
+                  ...lecture,
+                };
+
+                return accLectures;
+              },
+              accSections[sectionIndex].lectures,
+            ) as LectureContentEntity[],
+          };
+
+          return accSections;
+        }, course.sections);
+
+        const coursesRepository =
+          transactionEntityManager.getRepository(CourseEntity);
+        const updatedCourse = await coursesRepository.save({
+          ...course,
+          ...patchedCourse,
+          requirements: [...course.requirements, ...(requirements || [])],
+          learningSkills: [...course.learningSkills, ...(learningSkills || [])],
+          sections: resultSections,
+        });
+
+        return plainToInstance(CourseResponseDto, updatedCourse, {
+          excludeExtraneousValues: true,
+        });
+      },
+    );
+  }
+
+  async patchCourseViaJsonPatch(
+    userId: string,
+    id: string,
+    dto: PatchCourseOperationsDto,
+  ) {
     return this.transactionService.runInTransaction(
       async (transactionEntityManger) => {
         const course = await this._findOneCourse(id, true);

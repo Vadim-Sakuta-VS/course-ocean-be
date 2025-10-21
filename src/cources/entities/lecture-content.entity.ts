@@ -22,17 +22,8 @@ export class LectureContentEntity {
   title: string;
 
   @Expose()
-  @Column({ name: 'video_url', type: 'text', nullable: true })
-  videoUrl: string;
-
-  @Expose()
   @Column({ name: 'is_preview_enabled', type: 'boolean', default: false })
   isPreviewEnabled: boolean;
-
-  @Expose()
-  @Column({ type: 'integer', nullable: true })
-  @Check('chk_duration_positive', '"duration" > 0')
-  duration: number;
 
   @Expose()
   @Column({ type: 'smallint' })

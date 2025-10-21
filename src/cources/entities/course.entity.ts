@@ -66,10 +66,6 @@ export class CourseEntity {
   requirements: string[];
 
   @Expose()
-  @Column({ name: 'cover_url', type: 'text', nullable: true })
-  coverUrl: string;
-
-  @Expose()
   @Column({
     type: 'numeric',
     precision: 8,
@@ -128,6 +124,10 @@ export class CourseEntity {
     cascade: true,
   })
   sections: SectionContentEntity[];
+
+  @Expose()
+  @Column({ type: 'integer', nullable: true })
+  duration: number;
 
   @Expose()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
