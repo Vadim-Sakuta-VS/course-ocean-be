@@ -5,7 +5,9 @@ import { CoursesService } from './courses.service';
 import { CourseEntity } from './entities/course.entity';
 import { LectureContentEntity } from './entities/lecture-content.entity';
 import { SectionContentEntity } from './entities/section-content.entity';
+import { S3Service } from '../common/services/s3';
 import { TransactionService } from '../common/services/transaction.service';
+import { FileEntity } from '../files/entities/file.entity';
 import { UsersModule } from '../users/users.module';
 
 @Module({
@@ -14,10 +16,11 @@ import { UsersModule } from '../users/users.module';
       CourseEntity,
       SectionContentEntity,
       LectureContentEntity,
+      FileEntity,
     ]),
     UsersModule,
   ],
   controllers: [CoursesController],
-  providers: [CoursesService, TransactionService],
+  providers: [CoursesService, TransactionService, S3Service],
 })
 export class CoursesModule {}

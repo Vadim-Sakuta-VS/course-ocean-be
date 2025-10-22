@@ -2,17 +2,29 @@ import {
   Body,
   Controller,
   Delete,
+  FileTypeValidator,
   Get,
   HttpCode,
   HttpStatus,
+  MaxFileSizeValidator,
   Param,
+  ParseFilePipe,
   ParseUUIDPipe,
   Patch,
   Post,
   Query,
+  UploadedFile,
+  UseInterceptors,
   UsePipes,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiOkResponse, getSchemaPath } from '@nestjs/swagger';
+import { FileInterceptor } from '@nestjs/platform-express';
+import {
+  ApiBearerAuth,
+  ApiBody,
+  ApiConsumes,
+  ApiOkResponse,
+  getSchemaPath,
+} from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
 import { CourseResponseDto } from './dto/course-response.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -21,13 +33,21 @@ import {
   PatchedCourseDto,
 } from './dto/patch-course.dto';
 import { CoursesFilterDto } from './dto/search-query.dto';
+import { UploadLectureVideoDto } from './dto/upload-lecture-video.dto';
 import { JsonPatchSyntaxPipe } from './pipes/json-patch-syntax.pipe';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { PageableContentDto } from '../auth/dto/pageable-content.dto';
+import {
+  IMAGE_MIME_TYPE_REGEXP,
+  MAX_IMAGE_SIZE,
+  MAX_VIDEO_SIZE,
+} from '../common/constants';
 import { User } from '../common/decorators/user.decorator';
+import { FileResponseDto } from '../common/dto/file-response.dto';
 import { IdsDto } from '../common/dto/ids.dto';
 import { StringValueDto } from '../common/dto/string-value.dto';
+import { MimeType } from '../common/types/enums';
 import { UserRole } from '../users/entities/user.entity';
 
 @Controller('courses')
@@ -357,5 +377,217 @@ export class CoursesController {
     @Param('id', new ParseUUIDPipe()) id: string,
   ) {
     return this.coursesService.deactivateCourse(userId, id);
+  }
+
+  /**
+   * Upload cover picture
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   */
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+      },
+      required: ['file'],
+    },
+  })
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  @Post(':id/cover')
+  uploadCourseCover(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) courseId: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({
+            fileType: IMAGE_MIME_TYPE_REGEXP,
+          }),
+          new MaxFileSizeValidator({
+            maxSize: MAX_IMAGE_SIZE,
+          }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+  ): Promise<FileResponseDto> {
+    return this.coursesService.uploadCourseCover(userId, courseId, file);
+  }
+
+  /**
+   * Delete cover picture
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   * @throws {409} Conflict
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Delete(':id/cover/:fileId')
+  deleteCourseCover(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) courseId: string,
+    @Param('fileId', new ParseUUIDPipe()) fileId: string,
+  ): Promise<boolean> {
+    return this.coursesService.deleteCourseCover(userId, courseId, fileId);
+  }
+
+  /**
+   * Upload video of lecture
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   */
+  @ApiBearerAuth()
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: {
+        file: {
+          type: 'string',
+          format: 'binary',
+        },
+        isPublic: {
+          type: 'boolean',
+        },
+        duration: {
+          type: 'number',
+        },
+      },
+      required: ['file', 'isPublic', 'duration'],
+    },
+  })
+  @Roles(UserRole.ADMIN)
+  @UseInterceptors(FileInterceptor('file'))
+  @Post(':id/sections/:sectionId/lectures/:lectureId/video')
+  uploadLectureVideo(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) courseId: string,
+    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
+    @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
+    @UploadedFile(
+      new ParseFilePipe({
+        validators: [
+          new FileTypeValidator({ fileType: MimeType.MP4 }),
+          new MaxFileSizeValidator({
+            maxSize: MAX_VIDEO_SIZE,
+          }),
+        ],
+      }),
+    )
+    file: Express.Multer.File,
+    @Body() dto: UploadLectureVideoDto,
+  ): Promise<FileResponseDto> {
+    return this.coursesService.uploadLectureVideo(
+      userId,
+      courseId,
+      sectionId,
+      lectureId,
+      file,
+      dto,
+    );
+  }
+
+  /**
+   * Delete video of lecture
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   * @throws {409} Conflict
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Delete(':id/sections/:sectionId/lectures/:lectureId/video/:fileId')
+  deleteLectureVideo(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) courseId: string,
+    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
+    @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
+    @Param('fileId', new ParseUUIDPipe()) fileId: string,
+  ): Promise<boolean> {
+    return this.coursesService.deleteLectureVideo(
+      userId,
+      courseId,
+      sectionId,
+      lectureId,
+      fileId,
+    );
+  }
+
+  /**
+   * Make public video of lecture
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   * @throws {409} Conflict
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Post(':id/sections/:sectionId/lectures/:lectureId/video/:fileId/make-public')
+  makePublicLectureVideo(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) courseId: string,
+    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
+    @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
+    @Param('fileId', new ParseUUIDPipe()) fileId: string,
+  ): Promise<boolean> {
+    return this.coursesService.updatePublicStateLectureVideo(
+      userId,
+      courseId,
+      sectionId,
+      lectureId,
+      fileId,
+      true,
+    );
+  }
+
+  /**
+   * Make private video of lecture
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   * @throws {409} Conflict
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Post(
+    ':id/sections/:sectionId/lectures/:lectureId/video/:fileId/make-private',
+  )
+  makePrivateLectureVideo(
+    @User('id') userId: string,
+    @Param('id', new ParseUUIDPipe()) courseId: string,
+    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
+    @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
+    @Param('fileId', new ParseUUIDPipe()) fileId: string,
+  ): Promise<boolean> {
+    return this.coursesService.updatePublicStateLectureVideo(
+      userId,
+      courseId,
+      sectionId,
+      lectureId,
+      fileId,
+      false,
+    );
   }
 }

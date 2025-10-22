@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
   Injectable,
   NotFoundException,
@@ -15,9 +16,11 @@ import {
 } from './constants';
 import { CourseResponseDto } from './dto/course-response.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
+import { UploadLectureVideoDto } from './dto/upload-lecture-video.dto';
 import { CourseEntity } from './entities/course.entity';
 import { LectureContentEntity } from './entities/lecture-content.entity';
 import { SectionContentEntity } from './entities/section-content.entity';
+import { FileResponseDto } from '../common/dto/file-response.dto';
 import { TransactionService } from '../common/services/transaction.service';
 import { UsersService } from '../users/users.service';
 import {
@@ -30,6 +33,8 @@ import {
   CourseSorting,
 } from './dto/search-query.dto';
 import { PageableContentDto } from '../auth/dto/pageable-content.dto';
+import { S3Service } from '../common/services/s3';
+import { FileEntity } from '../files/entities/file.entity';
 
 @Injectable()
 export class CoursesService {
@@ -40,8 +45,11 @@ export class CoursesService {
     private readonly sectionContentRepository: Repository<SectionContentEntity>,
     @InjectRepository(LectureContentEntity)
     private readonly lectureContentRepository: Repository<LectureContentEntity>,
+    @InjectRepository(FileEntity)
+    private readonly filesRepository: Repository<FileEntity>,
     private readonly transactionService: TransactionService,
     private readonly usersService: UsersService,
+    private readonly s3Service: S3Service,
   ) {}
 
   async create(userId: string, { topicId, ...dto }: CreateCourseDto) {
@@ -473,6 +481,172 @@ export class CoursesService {
           (learningSkill) => learningSkill !== value,
         ),
       },
+    );
+
+    return !!result.affected;
+  }
+
+  async uploadCourseCover(
+    userId: string,
+    courseId: string,
+    file: Express.Multer.File,
+  ): Promise<FileResponseDto> {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const { prefixId, fileKey } = await this.s3Service.uploadObject({
+      filename: file.originalname,
+      contentType: file.mimetype,
+      directories: ['courses', 'images', 'covers'],
+      isPublic: true,
+      buffer: file.buffer,
+    });
+    course.coverFile = this.filesRepository.create({
+      id: prefixId,
+      originalFilename: file.originalname,
+      storageFilePath: fileKey,
+      mimeType: file.mimetype,
+      size: file.size,
+      isPublic: true,
+    });
+    await this.coursesRepository.save(course);
+
+    return {
+      id: prefixId,
+      url: this.s3Service.getPublicUrl(fileKey),
+    };
+  }
+
+  async deleteCourseCover(userId: string, courseId: string, fileId: string) {
+    const course = await this._findOneCourse(courseId, true);
+    this.checkUserPermission(course, userId);
+    if (course.coverFile.id !== fileId) {
+      throw new ConflictException(
+        `File id ${fileId} don't match course ${courseId}`,
+      );
+    }
+    await this.filesRepository.delete({ id: fileId });
+    await this.s3Service
+      .deleteObject(course.coverFile.storageFilePath, course.coverFile.isPublic)
+      .catch(() => {});
+
+    return true;
+  }
+
+  async uploadLectureVideo(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+    lectureId: string,
+    file: Express.Multer.File,
+    { isPublic, duration }: UploadLectureVideoDto,
+  ): Promise<FileResponseDto> {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const { prefixId, fileKey } = await this.s3Service.uploadObject({
+      isPublic,
+      filename: file.originalname,
+      contentType: file.mimetype,
+      directories: ['courses', 'lectures', 'video'],
+      buffer: file.buffer,
+    });
+    await this.lectureContentRepository.save({
+      id: lectureId,
+      videoFile: {
+        isPublic,
+        duration,
+        id: prefixId,
+        originalFilename: file.originalname,
+        storageFilePath: fileKey,
+        mimeType: file.mimetype,
+        size: file.size,
+      },
+      section: { id: sectionId, course: { id: courseId } },
+    });
+
+    return {
+      id: prefixId,
+      url: isPublic
+        ? this.s3Service.getPublicUrl(fileKey)
+        : await this.s3Service.generateViewUrl(fileKey, duration + 300),
+    };
+  }
+
+  private async getCourseVideoLecture(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+    lectureId: string,
+    fileId: string,
+  ) {
+    const course = await this._findOneCourse(courseId, true);
+    this.checkUserPermission(course, userId);
+    const section = course.sections.find(
+      (section) =>
+        section.id === sectionId &&
+        section.lectures.some(
+          (lecture) =>
+            lecture.id === lectureId && lecture.videoFile.id === fileId,
+        ),
+    );
+    if (!section) {
+      throw new ConflictException(
+        `File id ${fileId} don't match course ${courseId}`,
+      );
+    }
+
+    return section.lectures.find(
+      ({ videoFile }) => videoFile.id === fileId,
+    ) as LectureContentEntity;
+  }
+
+  async deleteLectureVideo(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+    lectureId: string,
+    fileId: string,
+  ) {
+    const lecture = await this.getCourseVideoLecture(
+      userId,
+      courseId,
+      sectionId,
+      lectureId,
+      fileId,
+    );
+    await this.filesRepository.delete({ id: fileId });
+    await this.s3Service
+      .deleteObject(
+        lecture.videoFile.storageFilePath,
+        lecture.videoFile.isPublic,
+      )
+      .catch(() => {});
+
+    return true;
+  }
+
+  async updatePublicStateLectureVideo(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+    lectureId: string,
+    fileId: string,
+    isPublic: boolean,
+  ) {
+    const lecture = await this.getCourseVideoLecture(
+      userId,
+      courseId,
+      sectionId,
+      lectureId,
+      fileId,
+    );
+    if (isPublic) {
+      await this.s3Service.makeObjectPublic(lecture.videoFile.storageFilePath);
+    } else {
+      await this.s3Service.makeObjectPrivate(lecture.videoFile.storageFilePath);
+    }
+    const result = await this.filesRepository.update(
+      { id: fileId },
+      { isPublic },
     );
 
     return !!result.affected;

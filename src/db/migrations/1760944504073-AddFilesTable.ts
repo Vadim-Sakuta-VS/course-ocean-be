@@ -23,17 +23,10 @@ export class AddFilesTable1760944504073 implements MigrationInterface {
           {
             name: 'original_filename',
             type: 'text',
-            isNullable: true,
           },
           {
-            name: 'storage_filename',
+            name: 'storage_file_path',
             type: 'text',
-            isNullable: true,
-          },
-          {
-            name: 'provider_url',
-            type: 'text',
-            isNullable: true,
           },
           {
             name: 'is_public',
@@ -44,12 +37,10 @@ export class AddFilesTable1760944504073 implements MigrationInterface {
             name: 'mime_type',
             type: 'varchar',
             length: '255',
-            isNullable: true,
           },
           {
             name: 'size',
             type: 'bigint',
-            isNullable: true,
           },
           {
             name: 'duration',

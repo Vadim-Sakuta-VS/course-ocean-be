@@ -9,7 +9,6 @@ import { getDatabaseConfig } from './config/database.config';
 import { CoursesModule } from './cources/cources.module';
 import { DictionariesModule } from './dictionaries/dictionaries.module';
 import { MailerModule } from './mailer/mailer.module';
-import { S3Module } from './s3/s3.module';
 import { UsersModule } from './users/users.module';
 
 @Module({
@@ -30,7 +29,6 @@ import { UsersModule } from './users/users.module';
     DictionariesModule,
     CoursesModule,
     CartModule,
-    S3Module,
   ],
 })
 export class AppModule implements NestModule {

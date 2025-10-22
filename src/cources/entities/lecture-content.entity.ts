@@ -6,10 +6,12 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { SectionContentEntity } from './section-content.entity';
+import { FileEntity } from '../../files/entities/file.entity';
 
 @Entity('lecture_content')
 export class LectureContentEntity {
@@ -36,6 +38,10 @@ export class LectureContentEntity {
   })
   @JoinColumn({ name: 'section_content_id' })
   section: SectionContentEntity;
+
+  @OneToOne(() => FileEntity, { cascade: true })
+  @JoinColumn({ name: 'video_file_id' })
+  videoFile: FileEntity;
 
   @Exclude()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

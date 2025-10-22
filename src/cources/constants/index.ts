@@ -20,6 +20,9 @@ export const COURSE_DURATION_FILTER_SQL_MAP: Record<
 export const FIND_COURSE_RELATIONS: FindOptionsRelations<CourseEntity> = {
   author: true,
   sections: {
-    lectures: true,
+    lectures: {
+      videoFile: true,
+    },
   },
+  coverFile: true,
 };

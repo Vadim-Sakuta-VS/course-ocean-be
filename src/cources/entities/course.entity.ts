@@ -8,11 +8,13 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { SectionContentEntity } from './section-content.entity';
 import { TopicEntity } from '../../dictionaries/entities/topic.entity';
+import { FileEntity } from '../../files/entities/file.entity';
 import { UserEntity } from '../../users/entities/user.entity';
 
 export enum CourseLevel {
@@ -124,6 +126,10 @@ export class CourseEntity {
     cascade: true,
   })
   sections: SectionContentEntity[];
+
+  @OneToOne(() => FileEntity, { cascade: true })
+  @JoinColumn({ name: 'cover_file_id' })
+  coverFile: FileEntity;
 
   @Expose()
   @Column({ type: 'integer', nullable: true })
