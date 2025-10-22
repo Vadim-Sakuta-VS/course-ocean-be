@@ -1,5 +1,5 @@
 export class FileResponseDto {
   id: string;
-  url: string;
+  url: string | null;
   duration?: number;
 }

@@ -95,8 +95,7 @@ export class S3Service {
         ContentType: contentType,
         Body: buffer,
       });
-      const res = await this.s3Client.send(command);
-      console.log(res);
+      await this.s3Client.send(command);
 
       return { prefixId, fileKey };
     } catch (error) {
@@ -197,8 +196,7 @@ export class S3Service {
         Bucket: sourceBucket,
         Key: fileKey,
       });
-      const delRes = await this.s3Client.send(deleteCommand);
-      console.log(delRes);
+      await this.s3Client.send(deleteCommand);
 
       return true;
     } catch (error) {

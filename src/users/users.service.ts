@@ -1,10 +1,11 @@
 import {
   ConflictException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { plainToInstance } from 'class-transformer';
 import {
   EntityManager,
   FindOneOptions,
@@ -17,7 +18,7 @@ import { CreateUserDto } from './dto/create-user.dto';
 import { UserEntity } from './entities/user.entity';
 import { FIND_COURSE_RELATIONS } from '../cources/constants';
 import { WishListEntity } from './entities/wish-list.entity';
-import { CourseResponseDto } from '../cources/dto/course-response.dto';
+import { CoursesService } from '../cources/courses.service';
 
 @Injectable()
 export class UsersService {
@@ -26,6 +27,8 @@ export class UsersService {
     private readonly usersRepository: Repository<UserEntity>,
     @InjectRepository(WishListEntity)
     private readonly wishListRepository: Repository<WishListEntity>,
+    @Inject(forwardRef(() => CoursesService))
+    private readonly coursesService: CoursesService,
   ) {}
 
   async createNew(
@@ -159,12 +162,10 @@ export class UsersService {
       },
     });
 
-    return (
+    return await Promise.all(
       user?.wishList.map((course) =>
-        plainToInstance(CourseResponseDto, course, {
-          excludeExtraneousValues: true,
-        }),
-      ) || []
+        this.coursesService.prepareCourseResponse(course),
+      ) || [],
     );
   }
 }

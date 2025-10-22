@@ -1,4 +1,4 @@
-import { Module } from '@nestjs/common';
+import { forwardRef, Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CoursesController } from './courses.controller';
 import { CoursesService } from './courses.service';
@@ -18,9 +18,10 @@ import { UsersModule } from '../users/users.module';
       LectureContentEntity,
       FileEntity,
     ]),
-    UsersModule,
+    forwardRef(() => UsersModule),
   ],
   controllers: [CoursesController],
   providers: [CoursesService, TransactionService, S3Service],
+  exports: [CoursesService],
 })
 export class CoursesModule {}

@@ -2,6 +2,8 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -20,6 +22,7 @@ import { UploadLectureVideoDto } from './dto/upload-lecture-video.dto';
 import { CourseEntity } from './entities/course.entity';
 import { LectureContentEntity } from './entities/lecture-content.entity';
 import { SectionContentEntity } from './entities/section-content.entity';
+import { DEFAULT_FILE_VIEW_TTL } from '../common/constants';
 import { FileResponseDto } from '../common/dto/file-response.dto';
 import { TransactionService } from '../common/services/transaction.service';
 import { UsersService } from '../users/users.service';
@@ -48,6 +51,7 @@ export class CoursesService {
     @InjectRepository(FileEntity)
     private readonly filesRepository: Repository<FileEntity>,
     private readonly transactionService: TransactionService,
+    @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     private readonly s3Service: S3Service,
   ) {}
@@ -65,9 +69,7 @@ export class CoursesService {
         } as unknown as DeepPartial<CourseEntity>);
         course.author = await this.usersService.findOneById(userId);
 
-        return plainToInstance(CourseResponseDto, course, {
-          excludeExtraneousValues: true,
-        });
+        return this.prepareCourseResponse(course);
       },
     );
   }
@@ -95,8 +97,10 @@ export class CoursesService {
       .innerJoin('t.subcategory', 's')
       .innerJoin('s.category', 'ct')
       .innerJoinAndSelect('c.author', 'a')
+      .leftJoinAndSelect('c.coverFile', 'cf')
       .leftJoinAndSelect('c.sections', 'sc')
-      .leftJoinAndSelect('sc.lectures', 'lc');
+      .leftJoinAndSelect('sc.lectures', 'lc')
+      .leftJoinAndSelect('lc.videoFile', 'vf');
 
     queryBuilder.where('c.is_active = :isActive', { isActive });
     if (categoryIds?.length) {
@@ -183,10 +187,8 @@ export class CoursesService {
       size,
       total,
       totalPages: Math.ceil(total / size),
-      content: courses.map((course) =>
-        plainToInstance(CourseResponseDto, course, {
-          excludeExtraneousValues: true,
-        }),
+      content: await Promise.all(
+        courses.map((course) => this.prepareCourseResponse(course)),
       ),
     };
   }
@@ -219,9 +221,7 @@ export class CoursesService {
       throw new ForbiddenException();
     }
 
-    return plainToInstance(CourseResponseDto, course, {
-      excludeExtraneousValues: true,
-    });
+    return this.prepareCourseResponse(course);
   }
 
   async deleteCourse(userId: string, id: string) {
@@ -307,9 +307,7 @@ export class CoursesService {
           sections: resultSections,
         });
 
-        return plainToInstance(CourseResponseDto, updatedCourse, {
-          excludeExtraneousValues: true,
-        });
+        return this.prepareCourseResponse(updatedCourse);
       },
     );
   }
@@ -346,11 +344,11 @@ export class CoursesService {
         }
         const courseRepository =
           transactionEntityManger.getRepository(CourseEntity);
-        const updatedCourse = courseRepository.save(patchResult.newDocument);
+        const updatedCourse = await courseRepository.save(
+          patchResult.newDocument,
+        );
 
-        return plainToInstance(CourseResponseDto, updatedCourse, {
-          excludeExtraneousValues: true,
-        });
+        return this.prepareCourseResponse(updatedCourse);
       },
     );
   }
@@ -567,7 +565,10 @@ export class CoursesService {
       id: prefixId,
       url: isPublic
         ? this.s3Service.getPublicUrl(fileKey)
-        : await this.s3Service.generateViewUrl(fileKey, duration + 300),
+        : await this.s3Service.generateViewUrl(
+            fileKey,
+            duration + DEFAULT_FILE_VIEW_TTL,
+          ),
     };
   }
 
@@ -650,5 +651,52 @@ export class CoursesService {
     );
 
     return !!result.affected;
+  }
+
+  async prepareCourseResponse(
+    course: CourseEntity,
+    withPrivateContent = false,
+  ): Promise<CourseResponseDto> {
+    const getFileResponse = async (
+      file: FileEntity | null,
+    ): Promise<FileResponseDto | null> => {
+      if (!file?.id) {
+        return null;
+      }
+
+      return {
+        id: file.id,
+        url: file.isPublic
+          ? this.s3Service.getPublicUrl(file.storageFilePath)
+          : withPrivateContent
+            ? await this.s3Service.generateViewUrl(
+                file.storageFilePath,
+                (file.duration || 0) + DEFAULT_FILE_VIEW_TTL,
+              )
+            : null,
+        duration: file.duration,
+      };
+    };
+    const res = plainToInstance(CourseResponseDto, course, {
+      excludeExtraneousValues: true,
+    });
+    res.cover = await getFileResponse(course.coverFile);
+    res.sections = await Promise.all(
+      res.sections.map(async (section, sIndex) => {
+        section.lectures = await Promise.all(
+          section.lectures.map(async (lecture, lIndex) => {
+            lecture.video = await getFileResponse(
+              course.sections[sIndex].lectures[lIndex].videoFile,
+            );
+
+            return lecture;
+          }),
+        );
+
+        return section;
+      }),
+    );
+
+    return res;
   }
 }
