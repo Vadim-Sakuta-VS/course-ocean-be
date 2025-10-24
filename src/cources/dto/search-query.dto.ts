@@ -13,6 +13,7 @@ import {
   Min,
 } from 'class-validator';
 import { IsDateRange } from '../../common/decorators/is-date-range.decorator';
+import { PageableFilterDto } from '../../common/dto/pageable-filter.dto';
 import { CourseLevel } from '../entities/course.entity';
 
 export enum CourseDurationFilter {
@@ -35,7 +36,7 @@ export enum CourseSorting {
   LOWEST_PRICE,
 }
 
-export class CoursesFilterDto {
+export class CoursesFilterDto extends PageableFilterDto {
   @ApiProperty({ required: false })
   @IsOptional()
   @IsDateString({ strict: true })
@@ -125,27 +126,6 @@ export class CoursesFilterDto {
   @IsOptional()
   @IsString()
   search: string;
-
-  @ApiProperty({ required: false, default: 20 })
-  @IsOptional()
-  @IsInt()
-  @Min(1)
-  @Max(50)
-  @Type(() => Number)
-  @Transform(({ value }: { value: string }) =>
-    value === undefined ? 20 : value,
-  )
-  size: number;
-
-  @ApiProperty({ required: false, default: 0 })
-  @IsOptional()
-  @IsInt()
-  @Min(0)
-  @Type(() => Number)
-  @Transform(({ value }: { value: number }) =>
-    value === undefined ? 0 : value,
-  )
-  page: number;
 
   @ApiProperty({ required: false, default: 1 })
   @IsOptional()

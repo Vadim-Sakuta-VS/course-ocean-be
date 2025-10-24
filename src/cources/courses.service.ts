@@ -35,7 +35,7 @@ import {
   CoursesFilterDto,
   CourseSorting,
 } from './dto/search-query.dto';
-import { PageableContentDto } from '../auth/dto/pageable-content.dto';
+import { PageableContentDto } from '../common/dto/pageable-content.dto';
 import { S3Service } from '../common/services/s3';
 import { FileEntity } from '../files/entities/file.entity';
 

@@ -10,6 +10,7 @@ import { CoursesModule } from './cources/cources.module';
 import { DictionariesModule } from './dictionaries/dictionaries.module';
 import { MailerModule } from './mailer/mailer.module';
 import { UsersModule } from './users/users.module';
+import { ReviewsModule } from './reviews/reviews.module';
 
 @Module({
   imports: [
@@ -29,6 +30,7 @@ import { UsersModule } from './users/users.module';
     DictionariesModule,
     CoursesModule,
     CartModule,
+    ReviewsModule,
   ],
 })
 export class AppModule implements NestModule {
