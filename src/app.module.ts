@@ -9,8 +9,10 @@ import { getDatabaseConfig } from './config/database.config';
 import { CoursesModule } from './cources/cources.module';
 import { DictionariesModule } from './dictionaries/dictionaries.module';
 import { MailerModule } from './mailer/mailer.module';
-import { UsersModule } from './users/users.module';
+import { PaymentsModule } from './payments/payments.module';
 import { ReviewsModule } from './reviews/reviews.module';
+import { UserCoursesModule } from './user-courses/user-courses.module';
+import { UsersModule } from './users/users.module';
 
 @Module({
   imports: [
@@ -31,6 +33,8 @@ import { ReviewsModule } from './reviews/reviews.module';
     CoursesModule,
     CartModule,
     ReviewsModule,
+    PaymentsModule,
+    UserCoursesModule,
   ],
 })
 export class AppModule implements NestModule {

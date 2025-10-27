@@ -89,12 +89,12 @@ export class CourseEntity {
   @ApiProperty({ default: new Date().toISOString() })
   @Expose()
   @Column({ name: 'discount_start_date', type: 'timestamptz', nullable: true })
-  discountStartDate: string;
+  discountStartDate: Date;
 
   @ApiProperty({ default: new Date().toISOString() })
   @Expose()
   @Column({ name: 'discount_end_date', type: 'timestamptz', nullable: true })
-  discountEndDate: string;
+  discountEndDate: Date;
 
   @Expose()
   @Column({ name: 'is_active', type: 'boolean', default: false })

@@ -699,4 +699,22 @@ export class CoursesService {
 
     return res;
   }
+
+  getCoursePrice({
+    price,
+    discount,
+    discountStartDate,
+    discountEndDate,
+  }: CourseResponseDto) {
+    const currentDate = new Date();
+    const isActiveDiscount =
+      !!discount &&
+      (!discountStartDate || currentDate >= discountStartDate) &&
+      (!discountEndDate || currentDate <= discountEndDate);
+    if (isActiveDiscount) {
+      return (price * (100 - discount)) / 100;
+    }
+
+    return price;
+  }
 }
