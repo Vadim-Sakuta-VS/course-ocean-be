@@ -12,6 +12,7 @@ import {
   Max,
   Min,
 } from 'class-validator';
+import { IsBooleanQuery } from '../../common/decorators/is-boolean-query.decorator';
 import { IsDateRange } from '../../common/decorators/is-date-range.decorator';
 import { PageableFilterDto } from '../../common/dto/pageable-filter.dto';
 import { CourseLevel } from '../entities/course.entity';
@@ -111,15 +112,7 @@ export class CoursesFilterDto extends PageableFilterDto {
     description: 'Ignoring for user with role STUDENT',
     default: true,
   })
-  @IsOptional()
-  @IsBoolean()
-  @Transform(({ value }) => {
-    if (typeof value === 'boolean') {
-      return value;
-    }
-
-    return value === '1' || value === 'true';
-  })
+  @IsBooleanQuery()
   isActive: boolean;
 
   @ApiProperty({ required: false })
