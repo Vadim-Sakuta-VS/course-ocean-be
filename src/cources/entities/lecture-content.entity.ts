@@ -6,12 +6,14 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToMany,
   OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { SectionContentEntity } from './section-content.entity';
 import { FileEntity } from '../../files/entities/file.entity';
+import { UserCourseLectureProgressEntity } from '../../user-courses/entities/user-course-lecture-progress.entity';
 
 @Entity('lecture_content')
 export class LectureContentEntity {
@@ -42,6 +44,12 @@ export class LectureContentEntity {
   @OneToOne(() => FileEntity, { cascade: true })
   @JoinColumn({ name: 'video_file_id' })
   videoFile: FileEntity;
+
+  @OneToMany(
+    () => UserCourseLectureProgressEntity,
+    (lectureProgress) => lectureProgress.lecture,
+  )
+  userCourseLecturesProgress: UserCourseLectureProgressEntity[];
 
   @Exclude()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
