@@ -6,10 +6,12 @@ import {
   Entity,
   JoinColumn,
   ManyToOne,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { SectionContentEntity } from './section-content.entity';
+import { FileEntity } from '../../files/entities/file.entity';
 
 @Entity('lecture_content')
 export class LectureContentEntity {
@@ -22,17 +24,8 @@ export class LectureContentEntity {
   title: string;
 
   @Expose()
-  @Column({ name: 'video_url', type: 'text', nullable: true })
-  videoUrl: string;
-
-  @Expose()
   @Column({ name: 'is_preview_enabled', type: 'boolean', default: false })
   isPreviewEnabled: boolean;
-
-  @Expose()
-  @Column({ type: 'integer', nullable: true })
-  @Check('chk_duration_positive', '"duration" > 0')
-  duration: number;
 
   @Expose()
   @Column({ type: 'smallint' })
@@ -45,6 +38,10 @@ export class LectureContentEntity {
   })
   @JoinColumn({ name: 'section_content_id' })
   section: SectionContentEntity;
+
+  @OneToOne(() => FileEntity, { cascade: true })
+  @JoinColumn({ name: 'video_file_id' })
+  videoFile: FileEntity;
 
   @Exclude()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

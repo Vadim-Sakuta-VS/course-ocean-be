@@ -1,3 +1,4 @@
+import path from 'path';
 import {
   CopyObjectCommand,
   DeleteObjectCommand,
@@ -13,7 +14,7 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
-import { UploadObjectDto } from './dto/upload-object.dto';
+import { UploadObject } from './types';
 
 @Injectable()
 export class S3Service {
@@ -47,18 +48,78 @@ export class S3Service {
     });
   }
 
+  private getFileExtension(filename: string, contentType: string) {
+    return (
+      path.extname(filename).replace('.', '') ||
+      contentType.split('/').slice(-1)[0] ||
+      ''
+    );
+  }
+
+  private preparePutCommandOptions({
+    filename,
+    contentType,
+    directories,
+    isPublic,
+  }: Omit<UploadObject, 'ttl'>) {
+    const fileExtension = this.getFileExtension(filename, contentType);
+    const directoryPath = directories?.length
+      ? `${directories.join('/')}/`
+      : '';
+    const prefixId = uuidv4();
+    const fileKey = `${directoryPath}${prefixId}-${Date.now()}${fileExtension ? `.${fileExtension}` : ''}`;
+    const bucketName = isPublic
+      ? S3Service.CLOUDFLARE_R2_PUBLIC_BUCKET
+      : S3Service.CLOUDFLARE_R2_PRIVATE_BUCKET;
+
+    return { fileKey, bucketName, prefixId };
+  }
+
+  async uploadObject({
+    filename,
+    isPublic,
+    contentType,
+    directories,
+    buffer,
+  }: UploadObject) {
+    try {
+      const { prefixId, fileKey, bucketName } = this.preparePutCommandOptions({
+        filename,
+        contentType,
+        directories,
+        isPublic,
+      });
+      const command = new PutObjectCommand({
+        Bucket: bucketName,
+        Key: fileKey,
+        ContentType: contentType,
+        Body: buffer,
+      });
+      await this.s3Client.send(command);
+
+      return { prefixId, fileKey };
+    } catch (error) {
+      this.logger.error(error);
+      throw new InternalServerErrorException(
+        `Failed to upload object: ${filename}`,
+      );
+    }
+  }
+
   async generateUploadUrl({
-    fileName,
+    filename,
     isPublic,
     contentType,
     ttl,
-  }: UploadObjectDto) {
+    directories,
+  }: UploadObject) {
     try {
-      const fileKey = `${uuidv4()}-${fileName}`;
-      const bucketName = isPublic
-        ? S3Service.CLOUDFLARE_R2_PUBLIC_BUCKET
-        : S3Service.CLOUDFLARE_R2_PRIVATE_BUCKET;
-
+      const { prefixId, fileKey, bucketName } = this.preparePutCommandOptions({
+        filename,
+        contentType,
+        directories,
+        isPublic,
+      });
       const command = new PutObjectCommand({
         Bucket: bucketName,
         Key: fileKey,
@@ -71,12 +132,13 @@ export class S3Service {
 
       return {
         uploadUrl,
+        prefixId,
         fileKey,
       };
     } catch (error) {
       this.logger.error(error);
       throw new InternalServerErrorException(
-        `Failed to generate upload url for object: ${fileName}`,
+        `Failed to generate upload url for object: ${filename}`,
       );
     }
   }

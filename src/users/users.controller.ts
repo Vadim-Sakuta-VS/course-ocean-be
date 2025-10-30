@@ -12,18 +12,6 @@ export class UsersController {
   constructor(private readonly usersService: UsersService) {}
 
   /**
-   * Get user cart of courses
-   *
-   * @throws {401} Unauthorized
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN, UserRole.STUDENT)
-  @Get('cart')
-  getCart(@User('id') userId: string): Promise<CourseResponseDto[]> {
-    return this.usersService.getCart(userId);
-  }
-
-  /**
    * Get wish list
    *
    * @throws {401} Unauthorized

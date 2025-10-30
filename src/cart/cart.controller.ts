@@ -1,14 +1,27 @@
-import { Body, Controller, Delete, Post } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Post } from '@nestjs/common';
 import { ApiBearerAuth } from '@nestjs/swagger';
 import { CartService } from './cart.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { User } from '../common/decorators/user.decorator';
 import { IdsDto } from '../common/dto/ids.dto';
+import { CourseResponseDto } from '../cources/dto/course-response.dto';
 import { UserRole } from '../users/entities/user.entity';
 
 @Controller('cart')
 export class CartController {
   constructor(private readonly cartService: CartService) {}
+
+  /**
+   * Get cart of courses
+   *
+   * @throws {401} Unauthorized
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN, UserRole.STUDENT)
+  @Get()
+  getCart(@User('id') userId: string): Promise<CourseResponseDto[]> {
+    return this.cartService.getCart(userId);
+  }
 
   /**
    * Add courses to cart

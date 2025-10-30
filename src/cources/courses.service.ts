@@ -1,6 +1,9 @@
 import {
   BadRequestException,
+  ConflictException,
   ForbiddenException,
+  forwardRef,
+  Inject,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
@@ -15,7 +18,12 @@ import {
 } from './constants';
 import { CourseResponseDto } from './dto/course-response.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
+import { UploadLectureVideoDto } from './dto/upload-lecture-video.dto';
 import { CourseEntity } from './entities/course.entity';
+import { LectureContentEntity } from './entities/lecture-content.entity';
+import { SectionContentEntity } from './entities/section-content.entity';
+import { DEFAULT_FILE_VIEW_TTL } from '../common/constants';
+import { FileResponseDto } from '../common/dto/file-response.dto';
 import { TransactionService } from '../common/services/transaction.service';
 import { UsersService } from '../users/users.service';
 import {
@@ -28,14 +36,24 @@ import {
   CourseSorting,
 } from './dto/search-query.dto';
 import { PageableContentDto } from '../auth/dto/pageable-content.dto';
+import { S3Service } from '../common/services/s3';
+import { FileEntity } from '../files/entities/file.entity';
 
 @Injectable()
 export class CoursesService {
   constructor(
     @InjectRepository(CourseEntity)
     private readonly coursesRepository: Repository<CourseEntity>,
+    @InjectRepository(SectionContentEntity)
+    private readonly sectionContentRepository: Repository<SectionContentEntity>,
+    @InjectRepository(LectureContentEntity)
+    private readonly lectureContentRepository: Repository<LectureContentEntity>,
+    @InjectRepository(FileEntity)
+    private readonly filesRepository: Repository<FileEntity>,
     private readonly transactionService: TransactionService,
+    @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
+    private readonly s3Service: S3Service,
   ) {}
 
   async create(userId: string, { topicId, ...dto }: CreateCourseDto) {
@@ -51,9 +69,7 @@ export class CoursesService {
         } as unknown as DeepPartial<CourseEntity>);
         course.author = await this.usersService.findOneById(userId);
 
-        return plainToInstance(CourseResponseDto, course, {
-          excludeExtraneousValues: true,
-        });
+        return this.prepareCourseResponse(course);
       },
     );
   }
@@ -81,8 +97,10 @@ export class CoursesService {
       .innerJoin('t.subcategory', 's')
       .innerJoin('s.category', 'ct')
       .innerJoinAndSelect('c.author', 'a')
+      .leftJoinAndSelect('c.coverFile', 'cf')
       .leftJoinAndSelect('c.sections', 'sc')
-      .leftJoinAndSelect('sc.lectures', 'lc');
+      .leftJoinAndSelect('sc.lectures', 'lc')
+      .leftJoinAndSelect('lc.videoFile', 'vf');
 
     queryBuilder.where('c.is_active = :isActive', { isActive });
     if (categoryIds?.length) {
@@ -119,22 +137,13 @@ export class CoursesService {
       queryBuilder.andWhere('c.price > 0 and c.discount != 100');
     }
     if (duration?.length) {
-      const durationHavingCondition = duration
+      const durationCondition = duration
         .map(
           (durationSearchValue) =>
             COURSE_DURATION_FILTER_SQL_MAP[durationSearchValue],
         )
         .join(' or ');
-      const subQuery = queryBuilder
-        .subQuery()
-        .select('sub_c.id')
-        .from(CourseEntity, 'sub_c')
-        .leftJoin('sub_c.sections', 'sub_sc')
-        .leftJoin('sub_sc.lectures', 'sub_lc')
-        .groupBy('sub_c.id')
-        .having(durationHavingCondition)
-        .getQuery();
-      queryBuilder.andWhere(`c.id IN ${subQuery}`);
+      queryBuilder.andWhere(durationCondition);
     }
     if (search) {
       const searchTerm = `%${search}%`;
@@ -178,10 +187,8 @@ export class CoursesService {
       size,
       total,
       totalPages: Math.ceil(total / size),
-      content: courses.map((course) =>
-        plainToInstance(CourseResponseDto, course, {
-          excludeExtraneousValues: true,
-        }),
+      content: await Promise.all(
+        courses.map((course) => this.prepareCourseResponse(course)),
       ),
     };
   }
@@ -214,9 +221,7 @@ export class CoursesService {
       throw new ForbiddenException();
     }
 
-    return plainToInstance(CourseResponseDto, course, {
-      excludeExtraneousValues: true,
-    });
+    return this.prepareCourseResponse(course);
   }
 
   async deleteCourse(userId: string, id: string) {
@@ -245,7 +250,73 @@ export class CoursesService {
     return !!result.affected;
   }
 
-  async patchCourse(userId: string, id: string, dto: PatchCourseOperationsDto) {
+  async patchCourse(
+    userId: string,
+    id: string,
+    {
+      requirements = [],
+      learningSkills = [],
+      sections = [],
+      ...patchedCourse
+    }: PatchedCourseDto,
+  ) {
+    return this.transactionService.runInTransaction(
+      async (transactionEntityManager) => {
+        const course = await this._findOneCourse(id, true);
+        this.checkUserPermission(course, userId);
+        const resultSections = sections.reduce((accSections, section) => {
+          if (!section.id) {
+            return [...accSections, section];
+          }
+          const sectionIndex = course.sections.findIndex(
+            (s) => s.id === section.id,
+          );
+          accSections[sectionIndex] = {
+            ...accSections[sectionIndex],
+            ...section,
+            lectures: (section.lectures || []).reduce(
+              (accLectures, lecture) => {
+                if (!lecture.id) {
+                  return [...accLectures, lecture];
+                }
+                const lectureIndex = course.sections[
+                  sectionIndex
+                ].lectures.findIndex((l) => l.id === lecture.id);
+
+                accLectures[lectureIndex] = {
+                  ...accLectures[lectureIndex],
+                  ...lecture,
+                };
+
+                return accLectures;
+              },
+              accSections[sectionIndex].lectures,
+            ) as LectureContentEntity[],
+          };
+
+          return accSections;
+        }, course.sections);
+
+        const coursesRepository =
+          transactionEntityManager.getRepository(CourseEntity);
+        const updatedCourse = await coursesRepository.save({
+          ...course,
+          ...patchedCourse,
+          requirements: [...course.requirements, ...(requirements || [])],
+          learningSkills: [...course.learningSkills, ...(learningSkills || [])],
+          sections: resultSections,
+        });
+
+        return this.prepareCourseResponse(updatedCourse);
+      },
+    );
+  }
+
+  async patchCourseViaJsonPatch(
+    userId: string,
+    id: string,
+    dto: PatchCourseOperationsDto,
+  ) {
     return this.transactionService.runInTransaction(
       async (transactionEntityManger) => {
         const course = await this._findOneCourse(id, true);
@@ -273,11 +344,11 @@ export class CoursesService {
         }
         const courseRepository =
           transactionEntityManger.getRepository(CourseEntity);
-        const updatedCourse = courseRepository.save(patchResult.newDocument);
+        const updatedCourse = await courseRepository.save(
+          patchResult.newDocument,
+        );
 
-        return plainToInstance(CourseResponseDto, updatedCourse, {
-          excludeExtraneousValues: true,
-        });
+        return this.prepareCourseResponse(updatedCourse);
       },
     );
   }
@@ -305,5 +376,327 @@ export class CoursesService {
     if (course.authorId !== userId) {
       throw new ForbiddenException();
     }
+  }
+
+  async deleteBulkCourseSections(
+    userId: string,
+    courseId: string,
+    sectionsIds: string[],
+  ) {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const result = await this.sectionContentRepository.delete({
+      course: { id: courseId },
+      id: In(sectionsIds),
+    });
+
+    return !!result.affected;
+  }
+
+  async deleteCourseSection(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+  ) {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const result = await this.sectionContentRepository.delete({
+      course: { id: courseId },
+      id: sectionId,
+    });
+
+    return !!result.affected;
+  }
+
+  async deleteBulkCourseLectures(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+    lecturesIds: string[],
+  ) {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const result = await this.lectureContentRepository.delete({
+      section: {
+        id: sectionId,
+        course: { id: courseId },
+      },
+      id: In(lecturesIds),
+    });
+
+    return !!result.affected;
+  }
+
+  async deleteCourseLecture(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+    lectureId: string,
+  ) {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const result = await this.lectureContentRepository.delete({
+      section: {
+        id: sectionId,
+        course: { id: courseId },
+      },
+      id: lectureId,
+    });
+
+    return !!result.affected;
+  }
+
+  async deleteCourseRequirement(
+    userId: string,
+    courseId: string,
+    value: string,
+  ) {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const result = await this.coursesRepository.update(
+      { id: courseId },
+      {
+        requirements: course.requirements.filter(
+          (requirement) => requirement !== value,
+        ),
+      },
+    );
+
+    return !!result.affected;
+  }
+
+  async deleteCourseLearningSkill(
+    userId: string,
+    courseId: string,
+    value: string,
+  ) {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const result = await this.coursesRepository.update(
+      { id: courseId },
+      {
+        learningSkills: course.learningSkills.filter(
+          (learningSkill) => learningSkill !== value,
+        ),
+      },
+    );
+
+    return !!result.affected;
+  }
+
+  async uploadCourseCover(
+    userId: string,
+    courseId: string,
+    file: Express.Multer.File,
+  ): Promise<FileResponseDto> {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const { prefixId, fileKey } = await this.s3Service.uploadObject({
+      filename: file.originalname,
+      contentType: file.mimetype,
+      directories: ['courses', 'images', 'covers'],
+      isPublic: true,
+      buffer: file.buffer,
+    });
+    course.coverFile = this.filesRepository.create({
+      id: prefixId,
+      originalFilename: file.originalname,
+      storageFilePath: fileKey,
+      mimeType: file.mimetype,
+      size: file.size,
+      isPublic: true,
+    });
+    await this.coursesRepository.save(course);
+
+    return {
+      id: prefixId,
+      url: this.s3Service.getPublicUrl(fileKey),
+    };
+  }
+
+  async deleteCourseCover(userId: string, courseId: string, fileId: string) {
+    const course = await this._findOneCourse(courseId, true);
+    this.checkUserPermission(course, userId);
+    if (course.coverFile.id !== fileId) {
+      throw new ConflictException(
+        `File id ${fileId} don't match course ${courseId}`,
+      );
+    }
+    await this.filesRepository.delete({ id: fileId });
+    await this.s3Service
+      .deleteObject(course.coverFile.storageFilePath, course.coverFile.isPublic)
+      .catch(() => {});
+
+    return true;
+  }
+
+  async uploadLectureVideo(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+    lectureId: string,
+    file: Express.Multer.File,
+    { isPublic, duration }: UploadLectureVideoDto,
+  ): Promise<FileResponseDto> {
+    const course = await this._findOneCourse(courseId);
+    this.checkUserPermission(course, userId);
+    const { prefixId, fileKey } = await this.s3Service.uploadObject({
+      isPublic,
+      filename: file.originalname,
+      contentType: file.mimetype,
+      directories: ['courses', 'lectures', 'video'],
+      buffer: file.buffer,
+    });
+    await this.lectureContentRepository.save({
+      id: lectureId,
+      videoFile: {
+        isPublic,
+        duration,
+        id: prefixId,
+        originalFilename: file.originalname,
+        storageFilePath: fileKey,
+        mimeType: file.mimetype,
+        size: file.size,
+      },
+      section: { id: sectionId, course: { id: courseId } },
+    });
+
+    return {
+      id: prefixId,
+      url: isPublic
+        ? this.s3Service.getPublicUrl(fileKey)
+        : await this.s3Service.generateViewUrl(
+            fileKey,
+            duration + DEFAULT_FILE_VIEW_TTL,
+          ),
+    };
+  }
+
+  private async getCourseVideoLecture(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+    lectureId: string,
+    fileId: string,
+  ) {
+    const course = await this._findOneCourse(courseId, true);
+    this.checkUserPermission(course, userId);
+    const section = course.sections.find(
+      (section) =>
+        section.id === sectionId &&
+        section.lectures.some(
+          (lecture) =>
+            lecture.id === lectureId && lecture.videoFile.id === fileId,
+        ),
+    );
+    if (!section) {
+      throw new ConflictException(
+        `File id ${fileId} don't match course ${courseId}`,
+      );
+    }
+
+    return section.lectures.find(
+      ({ videoFile }) => videoFile.id === fileId,
+    ) as LectureContentEntity;
+  }
+
+  async deleteLectureVideo(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+    lectureId: string,
+    fileId: string,
+  ) {
+    const lecture = await this.getCourseVideoLecture(
+      userId,
+      courseId,
+      sectionId,
+      lectureId,
+      fileId,
+    );
+    await this.filesRepository.delete({ id: fileId });
+    await this.s3Service
+      .deleteObject(
+        lecture.videoFile.storageFilePath,
+        lecture.videoFile.isPublic,
+      )
+      .catch(() => {});
+
+    return true;
+  }
+
+  async updatePublicStateLectureVideo(
+    userId: string,
+    courseId: string,
+    sectionId: string,
+    lectureId: string,
+    fileId: string,
+    isPublic: boolean,
+  ) {
+    const lecture = await this.getCourseVideoLecture(
+      userId,
+      courseId,
+      sectionId,
+      lectureId,
+      fileId,
+    );
+    if (isPublic) {
+      await this.s3Service.makeObjectPublic(lecture.videoFile.storageFilePath);
+    } else {
+      await this.s3Service.makeObjectPrivate(lecture.videoFile.storageFilePath);
+    }
+    const result = await this.filesRepository.update(
+      { id: fileId },
+      { isPublic },
+    );
+
+    return !!result.affected;
+  }
+
+  async prepareCourseResponse(
+    course: CourseEntity,
+    withPrivateContent = false,
+  ): Promise<CourseResponseDto> {
+    const getFileResponse = async (
+      file: FileEntity | null,
+    ): Promise<FileResponseDto | null> => {
+      if (!file?.id) {
+        return null;
+      }
+
+      return {
+        id: file.id,
+        url: file.isPublic
+          ? this.s3Service.getPublicUrl(file.storageFilePath)
+          : withPrivateContent
+            ? await this.s3Service.generateViewUrl(
+                file.storageFilePath,
+                (file.duration || 0) + DEFAULT_FILE_VIEW_TTL,
+              )
+            : null,
+        duration: file.duration,
+      };
+    };
+    const res = plainToInstance(CourseResponseDto, course, {
+      excludeExtraneousValues: true,
+    });
+    res.cover = await getFileResponse(course.coverFile);
+    res.sections = await Promise.all(
+      res.sections.map(async (section, sIndex) => {
+        section.lectures = await Promise.all(
+          section.lectures.map(async (lecture, lIndex) => {
+            lecture.video = await getFileResponse(
+              course.sections[sIndex].lectures[lIndex].videoFile,
+            );
+
+            return lecture;
+          }),
+        );
+
+        return section;
+      }),
+    );
+
+    return res;
   }
 }

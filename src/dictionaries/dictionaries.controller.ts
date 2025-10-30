@@ -10,7 +10,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
-import { CategoriesService } from './categories.service';
+import { DictionariesService } from './dictionaries.service';
 import {
   CreateCategoryGroupDto,
   CreateSubcategoriesGroupDto,
@@ -26,13 +26,13 @@ import {
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UpdateSubcategoryDto } from './dto/update-subcategory.dto';
 import { UpdateTopicDto } from './dto/update-topic.dto';
-import { Public } from '../../auth/decorators/public.decorator';
-import { Roles } from '../../auth/decorators/roles.decorator';
-import { UserRole } from '../../users/entities/user.entity';
+import { Public } from '../auth/decorators/public.decorator';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserRole } from '../users/entities/user.entity';
 
-@Controller('courses')
-export class CategoriesController {
-  constructor(private categoriesService: CategoriesService) {}
+@Controller('dictionaries')
+export class DictionariesController {
+  constructor(private dictionariesService: DictionariesService) {}
 
   /**
    * Create new category with subcategories and topics
@@ -47,7 +47,7 @@ export class CategoriesController {
   createCategoryGroup(
     @Body() dto: CreateCategoryGroupDto,
   ): Promise<CategoryGroupResponseDto> {
-    return this.categoriesService.createCategoryGroup(dto);
+    return this.dictionariesService.createCategoryGroup(dto);
   }
 
   /**
@@ -61,7 +61,7 @@ export class CategoriesController {
   @Roles(UserRole.ADMIN)
   @Put('/categories')
   updateCategory(@Body() dto: UpdateCategoryDto): Promise<CategoryResponseDto> {
-    return this.categoriesService.updateCategory(dto);
+    return this.dictionariesService.updateCategory(dto);
   }
 
   /**
@@ -73,7 +73,7 @@ export class CategoriesController {
   findCategories(
     @Query('search') search: string,
   ): Promise<CategoryResponseDto[]> {
-    return this.categoriesService.findCategories(search);
+    return this.dictionariesService.findCategories(search);
   }
 
   /**
@@ -90,7 +90,7 @@ export class CategoriesController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: CreateSubcategoriesGroupDto,
   ): Promise<SubcategoryGroupResponseDto[]> {
-    return this.categoriesService.createSubcategoriesGroup(id, dto);
+    return this.dictionariesService.createSubcategoriesGroup(id, dto);
   }
 
   /**
@@ -106,7 +106,7 @@ export class CategoriesController {
   deleteCategory(
     @Param('id', new ParseUUIDPipe()) id: string,
   ): Promise<boolean> {
-    return this.categoriesService.deleteCategory(id);
+    return this.dictionariesService.deleteCategory(id);
   }
 
   /**
@@ -121,7 +121,7 @@ export class CategoriesController {
     @Query('categoryId', new ParseUUIDPipe()) categoryId: string,
     @Query('search') search: string,
   ): Promise<SubcategoryResponseDto[]> {
-    return this.categoriesService.findSubcategories(categoryId, search);
+    return this.dictionariesService.findSubcategories(categoryId, search);
   }
 
   /**
@@ -137,7 +137,7 @@ export class CategoriesController {
   updateSubcategory(
     @Body() dto: UpdateSubcategoryDto,
   ): Promise<SubcategoryResponseDto> {
-    return this.categoriesService.updateSubcategory(dto);
+    return this.dictionariesService.updateSubcategory(dto);
   }
 
   /**
@@ -154,7 +154,7 @@ export class CategoriesController {
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: CreateTopicsGroupDto,
   ): Promise<TopicResponseDto[]> {
-    return this.categoriesService.createTopicsGroupDto(id, dto);
+    return this.dictionariesService.createTopicsGroupDto(id, dto);
   }
 
   /**
@@ -170,7 +170,7 @@ export class CategoriesController {
   deleteSubcategory(
     @Param('id', new ParseUUIDPipe()) id: string,
   ): Promise<boolean> {
-    return this.categoriesService.deleteSubcategory(id);
+    return this.dictionariesService.deleteSubcategory(id);
   }
 
   /**
@@ -185,7 +185,7 @@ export class CategoriesController {
     @Query('subcategoryId', new ParseUUIDPipe()) subcategoryId: string,
     @Query('search') search: string,
   ): Promise<TopicResponseDto[]> {
-    return this.categoriesService.findTopics(subcategoryId, search);
+    return this.dictionariesService.findTopics(subcategoryId, search);
   }
 
   /**
@@ -199,7 +199,7 @@ export class CategoriesController {
   @Roles(UserRole.ADMIN)
   @Put('/topics')
   updateTopic(@Body() dto: UpdateTopicDto): Promise<TopicResponseDto> {
-    return this.categoriesService.updateTopic(dto);
+    return this.dictionariesService.updateTopic(dto);
   }
 
   /**
@@ -213,6 +213,6 @@ export class CategoriesController {
   @Roles(UserRole.ADMIN)
   @Delete('/topics/:id')
   deleteTopic(@Param('id', new ParseUUIDPipe()) id: string): Promise<boolean> {
-    return this.categoriesService.deleteTopic(id);
+    return this.dictionariesService.deleteTopic(id);
   }
 }

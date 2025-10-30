@@ -1,12 +1,14 @@
 import { OmitType } from '@nestjs/swagger';
-import { Expose, Transform, Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import {
   Allow,
   ArrayMinSize,
   IsArray,
   IsEnum,
+  IsInt,
   IsNotEmpty,
   IsOptional,
+  IsPositive,
   IsString,
   IsUUID,
   ValidateIf,
@@ -17,7 +19,6 @@ import {
   CreateLectureContentDto,
   CreateSectionContentDto,
 } from './create-course.dto';
-import { IsElementOrderUnique } from '../../common/decorators/is-element-order-unique.decorator';
 
 export enum PatchOperation {
   ADD = 'add',
@@ -51,48 +52,53 @@ export class PatchCourseOperationsDto {
   operations: PatchCourseOperationDto[];
 }
 
-export class PatchedLectureContentDto extends CreateLectureContentDto {
-  @Expose()
+export class PatchedLectureContentDto extends OmitType(
+  CreateLectureContentDto,
+  ['order'],
+) {
   @ValidateIf((o: PatchedLectureContentDto) => o.id !== undefined)
   @IsUUID(4)
   id: string;
+
+  @ValidateIf((o: PatchedSectionContentDto) => o.id === undefined)
+  @IsInt()
+  @IsPositive()
+  order: number;
 }
 
 export class PatchedSectionContentDto extends OmitType(
   CreateSectionContentDto,
-  ['lectures'],
+  ['lectures', 'order'],
 ) {
-  @Expose()
   @ValidateIf((o: PatchedSectionContentDto) => o.id !== undefined)
   @IsUUID(4)
   id: string;
 
-  @Expose()
+  @ValidateIf((o: PatchedSectionContentDto) => o.id === undefined)
+  @IsPositive()
+  order: number;
+
   @IsOptional()
+  @IsArray()
   @ValidateNested()
   @Type(() => PatchedLectureContentDto)
-  @IsArray()
-  @IsElementOrderUnique()
   @Transform(({ value }: { value: PatchedLectureContentDto[] }) =>
     !value ? [] : value,
   )
-  lectures: PatchedLectureContentDto[];
+  lectures?: PatchedLectureContentDto[];
 }
 
 export class PatchedCourseDto extends OmitType(CreateCourseDto, ['sections']) {
-  @Expose()
   @IsNotEmpty()
   @IsUUID(4)
   id: string;
 
-  @Expose()
   @IsOptional()
   @IsArray()
   @ValidateNested()
   @Type(() => PatchedSectionContentDto)
-  @IsElementOrderUnique()
   @Transform(({ value }: { value: PatchedSectionContentDto[] }) =>
     !value ? [] : value,
   )
-  sections: PatchedSectionContentDto[];
+  sections?: PatchedSectionContentDto[];
 }

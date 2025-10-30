@@ -8,12 +8,14 @@ import {
   JoinColumn,
   ManyToOne,
   OneToMany,
+  OneToOne,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 import { SectionContentEntity } from './section-content.entity';
+import { TopicEntity } from '../../dictionaries/entities/topic.entity';
+import { FileEntity } from '../../files/entities/file.entity';
 import { UserEntity } from '../../users/entities/user.entity';
-import { TopicEntity } from '../categories/entities/topic.entity';
 
 export enum CourseLevel {
   BEGINNER = 'BEGINNER',
@@ -64,10 +66,6 @@ export class CourseEntity {
   @Expose()
   @Column({ type: 'text', array: true })
   requirements: string[];
-
-  @Expose()
-  @Column({ name: 'cover_url', type: 'text', nullable: true })
-  coverUrl: string;
 
   @Expose()
   @Column({
@@ -128,6 +126,14 @@ export class CourseEntity {
     cascade: true,
   })
   sections: SectionContentEntity[];
+
+  @OneToOne(() => FileEntity, { cascade: true })
+  @JoinColumn({ name: 'cover_file_id' })
+  coverFile: FileEntity;
+
+  @Expose()
+  @Column({ type: 'integer', nullable: true })
+  duration: number;
 
   @Expose()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
