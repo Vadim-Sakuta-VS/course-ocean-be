@@ -11,6 +11,7 @@ import {
 } from 'typeorm';
 import { UserProvidersEntity } from '../../auth/entities/user-providers.entity';
 import { CourseEntity } from '../../cources/entities/course.entity';
+import { UserCourseLectureProgressEntity } from '../../user-courses/entities/user-course-lecture-progress.entity';
 import { UserCourseEntity } from '../../user-courses/entities/user-course.entity';
 
 export enum UserRole {
@@ -127,8 +128,14 @@ export class UserEntity {
   })
   wishList: CourseEntity[];
 
-  @OneToMany(() => UserCourseEntity, (userCourses) => userCourses.user)
+  @OneToMany(() => UserCourseEntity, (userCourse) => userCourse.user)
   myCourses: UserCourseEntity[];
+
+  @OneToMany(
+    () => UserCourseLectureProgressEntity,
+    (lectureProgress) => lectureProgress.user,
+  )
+  myCourseLecturesProgress: UserCourseLectureProgressEntity[];
 
   @Expose()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

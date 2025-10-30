@@ -15,6 +15,7 @@ import {
 import { SectionContentEntity } from './section-content.entity';
 import { TopicEntity } from '../../dictionaries/entities/topic.entity';
 import { FileEntity } from '../../files/entities/file.entity';
+import { UserCourseLectureProgressEntity } from '../../user-courses/entities/user-course-lecture-progress.entity';
 import { UserCourseEntity } from '../../user-courses/entities/user-course.entity';
 import { UserEntity } from '../../users/entities/user.entity';
 
@@ -136,8 +137,14 @@ export class CourseEntity {
   @Column({ type: 'integer', nullable: true })
   duration: number;
 
-  @OneToMany(() => UserCourseEntity, (userCourses) => userCourses.course)
+  @OneToMany(() => UserCourseEntity, (userCourse) => userCourse.course)
   userCourses: UserCourseEntity[];
+
+  @OneToMany(
+    () => UserCourseLectureProgressEntity,
+    (lectureProgress) => lectureProgress.course,
+  )
+  userCourseLecturesProgress: UserCourseLectureProgressEntity[];
 
   @Expose()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })

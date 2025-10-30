@@ -9,6 +9,8 @@ import { CategoryEntity } from '../dictionaries/entities/category.entity';
 import { SubcategoryEntity } from '../dictionaries/entities/subcategory.entity';
 import { TopicEntity } from '../dictionaries/entities/topic.entity';
 import { FileEntity } from '../files/entities/file.entity';
+import { UserCourseLectureProgressEntity } from '../user-courses/entities/user-course-lecture-progress.entity';
+import { UserCourseEntity } from '../user-courses/entities/user-course.entity';
 import { UserEntity } from '../users/entities/user.entity';
 
 loadDotenv();
@@ -33,6 +35,8 @@ const options: DataSourceOptions & SeederOptions = {
     SectionContentEntity,
     LectureContentEntity,
     FileEntity,
+    UserCourseEntity,
+    UserCourseLectureProgressEntity,
   ],
   seeds: ['./src/db/seeds/*.ts'],
   factories: ['./src/db/factories/*.ts'],
