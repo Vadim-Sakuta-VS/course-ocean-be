@@ -18,13 +18,7 @@ import {
   UsePipes,
 } from '@nestjs/common';
 import { FileInterceptor } from '@nestjs/platform-express';
-import {
-  ApiBearerAuth,
-  ApiBody,
-  ApiConsumes,
-  ApiOkResponse,
-  getSchemaPath,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes } from '@nestjs/swagger';
 import { CoursesService } from './courses.service';
 import { CourseResponseDto } from './dto/course-response.dto';
 import { CreateCourseDto } from './dto/create-course.dto';
@@ -42,6 +36,7 @@ import {
   MAX_IMAGE_SIZE,
   MAX_VIDEO_SIZE,
 } from '../common/constants';
+import { ApiOkPageableContentResponse } from '../common/decorators/api-ok-pageable-content-response.decorator';
 import { User } from '../common/decorators/user.decorator';
 import { FileResponseDto } from '../common/dto/file-response.dto';
 import { IdsDto } from '../common/dto/ids.dto';
@@ -60,28 +55,7 @@ export class CoursesController {
    * @throws {400} Bad request
    * @throws {401} Unauthorized
    */
-  @ApiOkResponse({
-    schema: {
-      properties: {
-        page: {
-          type: 'number',
-        },
-        size: {
-          type: 'number',
-        },
-        total: {
-          type: 'number',
-        },
-        totalPages: {
-          type: 'number',
-        },
-        content: {
-          type: 'array',
-          items: { $ref: getSchemaPath(CourseResponseDto) },
-        },
-      },
-    },
-  })
+  @ApiOkPageableContentResponse(CourseResponseDto)
   @Public()
   @Get()
   findAll(

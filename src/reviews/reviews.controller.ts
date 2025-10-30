@@ -9,12 +9,7 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import {
-  ApiBearerAuth,
-  ApiOkResponse,
-  ApiQuery,
-  getSchemaPath,
-} from '@nestjs/swagger';
+import { ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { PatchReviewDto } from './dto/patch-review.dto';
 import { ReviewResponseDto } from './dto/review-response.dto';
@@ -22,6 +17,7 @@ import { ReviewsFilterDto } from './dto/reviews-filter.dto';
 import { ReviewsService } from './reviews.service';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
+import { ApiOkPageableContentResponse } from '../common/decorators/api-ok-pageable-content-response.decorator';
 import { User } from '../common/decorators/user.decorator';
 import { PageableContentDto } from '../common/dto/pageable-content.dto';
 import { UserRole } from '../users/entities/user.entity';
@@ -35,28 +31,7 @@ export class ReviewsController {
    *
    * @throws {400} Bad request
    */
-  @ApiOkResponse({
-    schema: {
-      properties: {
-        page: {
-          type: 'number',
-        },
-        size: {
-          type: 'number',
-        },
-        total: {
-          type: 'number',
-        },
-        totalPages: {
-          type: 'number',
-        },
-        content: {
-          type: 'array',
-          items: { $ref: getSchemaPath(ReviewResponseDto) },
-        },
-      },
-    },
-  })
+  @ApiOkPageableContentResponse(ReviewResponseDto)
   @Public()
   @Get()
   findAll(

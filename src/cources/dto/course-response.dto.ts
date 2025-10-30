@@ -1,7 +1,7 @@
 import { OmitType } from '@nestjs/swagger';
 import { Expose, Transform, Type } from 'class-transformer';
 import { FileResponseDto } from '../../common/dto/file-response.dto';
-import { AuthorResponseDto } from '../../users/dto/author-response.dto';
+import { UserShortResponseDto } from '../../users/dto/user-short-response.dto';
 import { CourseEntity } from '../entities/course.entity';
 import { LectureContentEntity } from '../entities/lecture-content.entity';
 import { SectionContentEntity } from '../entities/section-content.entity';
@@ -34,10 +34,11 @@ export class CourseResponseDto extends OmitType(CourseEntity, [
   'sections',
   'author',
   'coverFile',
+  'userCourses',
 ]) {
   @Expose()
-  @Type(() => AuthorResponseDto)
-  author: AuthorResponseDto;
+  @Type(() => UserShortResponseDto)
+  author: UserShortResponseDto;
 
   @Expose()
   @Type(() => SectionContentResponseDto)

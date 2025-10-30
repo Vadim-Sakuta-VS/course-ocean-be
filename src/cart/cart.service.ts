@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 import { CartOrdersEntity } from './entities/cart-orders.entity';
 import { FIND_COURSE_RELATIONS } from '../cources/constants';
 import { CoursesService } from '../cources/courses.service';
@@ -45,8 +45,15 @@ export class CartService {
     };
   }
 
-  async deleteOrders(userId: string, courseIds: string[]) {
-    const result = await this.cartOrdersRepository.delete({
+  async deleteOrders(
+    userId: string,
+    courseIds: string[],
+    transactionEntityManager?: EntityManager,
+  ) {
+    const cartOrdersRepository = transactionEntityManager
+      ? transactionEntityManager.getRepository(CartOrdersEntity)
+      : this.cartOrdersRepository;
+    const result = await cartOrdersRepository.delete({
       userId,
       courseId: In(courseIds),
     });

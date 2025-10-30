@@ -15,6 +15,7 @@ import {
 import { SectionContentEntity } from './section-content.entity';
 import { TopicEntity } from '../../dictionaries/entities/topic.entity';
 import { FileEntity } from '../../files/entities/file.entity';
+import { UserCourseEntity } from '../../user-courses/entities/user-course.entity';
 import { UserEntity } from '../../users/entities/user.entity';
 
 export enum CourseLevel {
@@ -89,12 +90,12 @@ export class CourseEntity {
   @ApiProperty({ default: new Date().toISOString() })
   @Expose()
   @Column({ name: 'discount_start_date', type: 'timestamptz', nullable: true })
-  discountStartDate: string;
+  discountStartDate: Date;
 
   @ApiProperty({ default: new Date().toISOString() })
   @Expose()
   @Column({ name: 'discount_end_date', type: 'timestamptz', nullable: true })
-  discountEndDate: string;
+  discountEndDate: Date;
 
   @Expose()
   @Column({ name: 'is_active', type: 'boolean', default: false })
@@ -134,6 +135,9 @@ export class CourseEntity {
   @Expose()
   @Column({ type: 'integer', nullable: true })
   duration: number;
+
+  @OneToMany(() => UserCourseEntity, (userCourses) => userCourses.course)
+  userCourses: UserCourseEntity[];
 
   @Expose()
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
