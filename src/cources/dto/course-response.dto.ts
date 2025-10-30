@@ -1,7 +1,7 @@
-import { OmitType, PickType } from '@nestjs/swagger';
+import { OmitType } from '@nestjs/swagger';
 import { Expose, Transform, Type } from 'class-transformer';
 import { FileResponseDto } from '../../common/dto/file-response.dto';
-import { UserEntity } from '../../users/entities/user.entity';
+import { AuthorResponseDto } from '../../users/dto/author-response.dto';
 import { CourseEntity } from '../entities/course.entity';
 import { LectureContentEntity } from '../entities/lecture-content.entity';
 import { SectionContentEntity } from '../entities/section-content.entity';
@@ -28,13 +28,6 @@ export class SectionContentResponseDto extends OmitType(SectionContentEntity, [
   @Transform(({ value }: { value: LectureContentResponseDto }) => value || [])
   lectures: LectureContentResponseDto[];
 }
-
-export class AuthorResponseDto extends PickType(UserEntity, [
-  'id',
-  'firstName',
-  'lastName',
-  'avatarUrl',
-]) {}
 
 export class CourseResponseDto extends OmitType(CourseEntity, [
   'topic',

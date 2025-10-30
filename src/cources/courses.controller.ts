@@ -37,7 +37,6 @@ import { UploadLectureVideoDto } from './dto/upload-lecture-video.dto';
 import { JsonPatchSyntaxPipe } from './pipes/json-patch-syntax.pipe';
 import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
-import { PageableContentDto } from '../auth/dto/pageable-content.dto';
 import {
   IMAGE_MIME_TYPE_REGEXP,
   MAX_IMAGE_SIZE,
@@ -46,6 +45,7 @@ import {
 import { User } from '../common/decorators/user.decorator';
 import { FileResponseDto } from '../common/dto/file-response.dto';
 import { IdsDto } from '../common/dto/ids.dto';
+import { PageableContentDto } from '../common/dto/pageable-content.dto';
 import { StringValueDto } from '../common/dto/string-value.dto';
 import { MimeType } from '../common/types/enums';
 import { UserRole } from '../users/entities/user.entity';
