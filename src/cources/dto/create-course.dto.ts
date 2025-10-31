@@ -77,13 +77,11 @@ export class CreateCourseDto {
   @IsOptional()
   @IsString({ each: true })
   @IsArray()
-  @Transform(({ value }: { value: string[] }) => (!value ? [] : value))
   learningSkills?: string[];
 
   @IsOptional()
   @IsString({ each: true })
   @IsArray()
-  @Transform(({ value }: { value: string[] }) => (!value ? [] : value))
   requirements?: string[];
 
   @IsOptional()

@@ -11,6 +11,7 @@ export class LectureContentResponseDto extends OmitType(LectureContentEntity, [
   'videoFile',
   'createdAt',
   'updatedAt',
+  'userCourseLecturesProgress',
 ]) {
   @Expose()
   @Transform(({ value }: { value: FileResponseDto }) => value || null)
@@ -35,6 +36,9 @@ export class CourseResponseDto extends OmitType(CourseEntity, [
   'author',
   'coverFile',
   'userCourses',
+  'requirements',
+  'learningSkills',
+  'userCourseLecturesProgress',
 ]) {
   @Expose()
   @Type(() => UserShortResponseDto)
@@ -48,4 +52,12 @@ export class CourseResponseDto extends OmitType(CourseEntity, [
   @Expose()
   @Transform(({ value }: { value: FileResponseDto }) => value || null)
   cover: FileResponseDto | null;
+
+  @Expose()
+  @Transform(({ value }: { value: string[] }) => (!value ? [] : value))
+  requirements: string[];
+
+  @Expose()
+  @Transform(({ value }: { value: string[] }) => (!value ? [] : value))
+  learningSkills: string[];
 }

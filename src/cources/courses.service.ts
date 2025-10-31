@@ -224,18 +224,6 @@ export class CoursesService {
     return this.prepareCourseResponse(course);
   }
 
-  async deleteCourse(userId: string, id: string) {
-    // TODO make check if course bought (throw error or do nothing)
-    const course = await this._findOneCourse(id);
-    this.checkUserPermission(course, userId);
-    const result = await this.coursesRepository.delete({
-      id,
-      authorId: userId,
-    });
-
-    return !!result.affected;
-  }
-
   async deleteBulkCourses(userId: string, ids: string[]) {
     // TODO make check if courses bought (throw error or skip such courses)
     const courses = await this.coursesRepository.find({
@@ -253,12 +241,7 @@ export class CoursesService {
   async patchCourse(
     userId: string,
     id: string,
-    {
-      requirements = [],
-      learningSkills = [],
-      sections = [],
-      ...patchedCourse
-    }: PatchedCourseDto,
+    { sections = [], ...patchedCourse }: PatchedCourseDto,
   ) {
     return this.transactionService.runInTransaction(
       async (transactionEntityManager) => {
@@ -302,8 +285,6 @@ export class CoursesService {
         const updatedCourse = await coursesRepository.save({
           ...course,
           ...patchedCourse,
-          requirements: [...course.requirements, ...(requirements || [])],
-          learningSkills: [...course.learningSkills, ...(learningSkills || [])],
           sections: resultSections,
         });
 
@@ -393,21 +374,6 @@ export class CoursesService {
     return !!result.affected;
   }
 
-  async deleteCourseSection(
-    userId: string,
-    courseId: string,
-    sectionId: string,
-  ) {
-    const course = await this._findOneCourse(courseId);
-    this.checkUserPermission(course, userId);
-    const result = await this.sectionContentRepository.delete({
-      course: { id: courseId },
-      id: sectionId,
-    });
-
-    return !!result.affected;
-  }
-
   async deleteBulkCourseLectures(
     userId: string,
     courseId: string,
@@ -423,63 +389,6 @@ export class CoursesService {
       },
       id: In(lecturesIds),
     });
-
-    return !!result.affected;
-  }
-
-  async deleteCourseLecture(
-    userId: string,
-    courseId: string,
-    sectionId: string,
-    lectureId: string,
-  ) {
-    const course = await this._findOneCourse(courseId);
-    this.checkUserPermission(course, userId);
-    const result = await this.lectureContentRepository.delete({
-      section: {
-        id: sectionId,
-        course: { id: courseId },
-      },
-      id: lectureId,
-    });
-
-    return !!result.affected;
-  }
-
-  async deleteCourseRequirement(
-    userId: string,
-    courseId: string,
-    value: string,
-  ) {
-    const course = await this._findOneCourse(courseId);
-    this.checkUserPermission(course, userId);
-    const result = await this.coursesRepository.update(
-      { id: courseId },
-      {
-        requirements: course.requirements.filter(
-          (requirement) => requirement !== value,
-        ),
-      },
-    );
-
-    return !!result.affected;
-  }
-
-  async deleteCourseLearningSkill(
-    userId: string,
-    courseId: string,
-    value: string,
-  ) {
-    const course = await this._findOneCourse(courseId);
-    this.checkUserPermission(course, userId);
-    const result = await this.coursesRepository.update(
-      { id: courseId },
-      {
-        learningSkills: course.learningSkills.filter(
-          (learningSkill) => learningSkill !== value,
-        ),
-      },
-    );
 
     return !!result.affected;
   }

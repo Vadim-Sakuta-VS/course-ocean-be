@@ -119,24 +119,6 @@ export class CoursesController {
   }
 
   /**
-   * Delete course by id
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {403} Forbidden
-   * @throws {404} Not found
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @Delete('/courses/:id')
-  deleteCourse(
-    @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
-    return this.coursesService.deleteCourse(userId, id);
-  }
-
-  /**
    * Update course
    *
    * @throws {400} Bad request
@@ -175,52 +157,6 @@ export class CoursesController {
     @Body() dto: PatchCourseOperationsDto,
   ) {
     return this.coursesService.patchCourseViaJsonPatch(userId, id, dto);
-  }
-
-  /**
-   * Delete one requirement by value
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {403} Forbidden
-   * @throws {404} Not found
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @Delete('/courses/:id/requirements')
-  deleteCourseRequirement(
-    @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Body() dto: StringValueDto,
-  ): Promise<boolean> {
-    return this.coursesService.deleteCourseRequirement(
-      userId,
-      courseId,
-      dto.value,
-    );
-  }
-
-  /**
-   * Delete one learning skill by value
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {403} Forbidden
-   * @throws {404} Not found
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @Delete('/courses/:id/learning-skills')
-  deleteCourseLearningSkill(
-    @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Body() dto: StringValueDto,
-  ): Promise<boolean> {
-    return this.coursesService.deleteCourseLearningSkill(
-      userId,
-      courseId,
-      dto.value,
-    );
   }
 
   /**
@@ -341,26 +277,11 @@ export class CoursesController {
     @User('id') userId: string,
     @Body() dto: IdsDto,
   ): Promise<boolean> {
-    return this.coursesService.deleteBulkCourseSections(userId, dto.ids);
-  }
-
-  /**
-   * Delete one section by id
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {403} Forbidden
-   * @throws {404} Not found
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @Delete('/sections/:sectionId')
-  deleteCourseSection(
-    @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
-  ): Promise<boolean> {
-    return this.coursesService.deleteCourseSection(userId, courseId, sectionId);
+    return this.coursesService.deleteBulkCourseSections(
+      userId,
+      'TODO',
+      dto.ids,
+    );
   }
 
   /**
@@ -385,31 +306,6 @@ export class CoursesController {
       courseId,
       sectionId,
       dto.ids,
-    );
-  }
-
-  /**
-   * Delete one lecture by id
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {403} Forbidden
-   * @throws {404} Not found
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @Delete('/lectures/:lectureId')
-  deleteCourseLecture(
-    @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
-    @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
-  ): Promise<boolean> {
-    return this.coursesService.deleteCourseLecture(
-      userId,
-      courseId,
-      sectionId,
-      lectureId,
     );
   }
 
