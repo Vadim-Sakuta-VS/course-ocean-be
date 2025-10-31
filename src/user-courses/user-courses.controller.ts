@@ -103,7 +103,7 @@ export class UserCoursesController {
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN, UserRole.STUDENT)
-  @Patch('/progress/courses/:courseId/lectures/:lectureId')
+  @Patch('/progress/lectures/:lectureId')
   patchLectureProgress(
     @User('id') userId: string,
     @Param('courseId', new ParseUUIDPipe()) courseId: string,
@@ -130,7 +130,7 @@ export class UserCoursesController {
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN, UserRole.STUDENT)
   @HttpCode(HttpStatus.OK)
-  @Post('/progress/courses/:courseId/lectures/:lectureId/complete')
+  @Post('/progress/lectures/:lectureId/complete')
   completeLectureProgress(
     @User('id') userId: string,
     @Param('courseId', new ParseUUIDPipe()) courseId: string,
@@ -154,7 +154,7 @@ export class UserCoursesController {
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN, UserRole.STUDENT)
   @HttpCode(HttpStatus.OK)
-  @Post('/progress/courses/:courseId/lectures/:lectureId/reset')
+  @Post('/progress/lectures/:lectureId/reset')
   resetLectureProgress(
     @User('id') userId: string,
     @Param('courseId', new ParseUUIDPipe()) courseId: string,
@@ -178,7 +178,7 @@ export class UserCoursesController {
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN, UserRole.STUDENT)
   @HttpCode(HttpStatus.OK)
-  @Post('/progress/courses/:courseId')
+  @Post('/progress/:courseId')
   resetCourseProgress(
     @User('id') userId: string,
     @Param('courseId', new ParseUUIDPipe()) courseId: string,
@@ -195,7 +195,7 @@ export class UserCoursesController {
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN, UserRole.STUDENT)
-  @Get('/progress/courses/:courseId')
+  @Get('/progress/:courseId')
   findCourseProgress(
     @User('id') userId: string,
     @Param('courseId', new ParseUUIDPipe()) courseId: string,
