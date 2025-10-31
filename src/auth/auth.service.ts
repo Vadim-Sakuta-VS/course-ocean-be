@@ -13,7 +13,7 @@ import bcrypt from 'bcrypt';
 import ms from 'ms';
 import { EntityManager, LessThan, MoreThan, Repository } from 'typeorm';
 import type { Request, Response } from 'express';
-import { verifyEmailTemplate } from '../../email-templates/verify-email.template';
+import { verifyEmailTemplate } from '../common/constants/email-templates';
 import { TransactionService } from '../common/services/transaction.service';
 import { __IS_PROD__ } from '../config/constants';
 import { MailerService } from '../mailer/mailer.service';
