@@ -1,11 +1,11 @@
 import { ForbiddenException, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { CreateReviewDto } from './dto/create-review.dto';
-import { PatchReviewDto } from './dto/patch-review.dto';
 import { ReviewResponseDto } from './dto/review-response.dto';
-import { ReviewsFilterDto } from './dto/reviews-filter.dto';
 import { Reaction } from './entities/review-reaction.entity';
 import { ReviewEntity } from './entities/review.entity';
+import { IReactionQuery } from './interfaces/reaction-query.interface';
+import { ICreateReview, IReview } from './interfaces/review.interface';
+import { IReviewsFilter } from './interfaces/reviews-filter.interface';
 import { ReviewReactionsRepository } from './repositories/review-reactions.repository';
 import { ReviewsRepository } from './repositories/reviews.repository';
 import { DeletedIdResponseDto } from '../common/dto/deleted-id-response.dto';
@@ -23,7 +23,7 @@ export class ReviewsService {
 
   async create(
     userId: string,
-    { textContent, rating, courseId }: CreateReviewDto,
+    { textContent, rating, courseId }: ICreateReview,
   ) {
     const { id } = await this.reviewsRepository.create(userId, {
       textContent,
@@ -38,7 +38,7 @@ export class ReviewsService {
   }
 
   async findAll(
-    { courseId, page, size }: ReviewsFilterDto,
+    { courseId, page, size }: IReviewsFilter,
     userId?: string,
   ): Promise<PageableContentDto<ReviewResponseDto>> {
     const [reviews, total] = await this.reviewsRepository.findAndCount({
@@ -58,7 +58,11 @@ export class ReviewsService {
     };
   }
 
-  async patch(userId: string, reviewId: string, dto: PatchReviewDto) {
+  async patch(
+    userId: string,
+    reviewId: string,
+    dto: Partial<Pick<IReview, 'textContent' | 'rating'>>,
+  ) {
     const review = await this.reviewsRepository.getOneById(reviewId);
     this.checkUserPermission(review, userId);
     const updatedReview = await this.reviewsRepository.updateOne({
@@ -83,89 +87,68 @@ export class ReviewsService {
     };
   }
 
-  async setLike(userId: string, reviewId: string, isCancel: boolean) {
+  async setReaction(
+    userId: string,
+    reviewId: string,
+    { type, isCancel }: IReactionQuery,
+  ) {
     return this.transactionService.runInTransaction(
       async (transactionEntityManger) => {
-        await this.reviewsRepository.getOneById(reviewId);
+        const review = await this.reviewsRepository.getOneById(reviewId);
         const userReaction =
           await this.reviewReactionsRepository.findUserReaction(
             userId,
             reviewId,
           );
-        if (isCancel && userReaction?.type === Reaction.LIKE) {
-          await this.reviewsRepository.decrementLikes(
-            reviewId,
-            transactionEntityManger,
-          );
-          await this.reviewReactionsRepository.deleteUserReaction(
-            userId,
-            reviewId,
-            transactionEntityManger,
-          );
-
-          return true;
-        } else if (userReaction?.type !== Reaction.LIKE) {
-          if (userReaction?.type === Reaction.DISLIKE) {
-            await this.reviewsRepository.decrementDislikes(
-              reviewId,
-              transactionEntityManger,
-            );
-          }
-          await this.reviewsRepository.incrementLikes(
-            reviewId,
-            transactionEntityManger,
-          );
-          await this.reviewReactionsRepository.createOrUpdate(
-            userId,
-            reviewId,
-            Reaction.LIKE,
-            transactionEntityManger,
-          );
-
-          return true;
-        }
-
-        return false;
-      },
-    );
-  }
-
-  async setDislike(userId: string, reviewId: string, isCancel: boolean) {
-    return this.transactionService.runInTransaction(
-      async (transactionEntityManger) => {
-        await this.reviewsRepository.getOneById(reviewId);
-        const userReaction =
-          await this.reviewReactionsRepository.findUserReaction(
-            userId,
-            reviewId,
-          );
-        if (isCancel && userReaction?.type === Reaction.DISLIKE) {
-          await this.reviewsRepository.decrementDislikes(
-            reviewId,
-            transactionEntityManger,
-          );
-          await this.reviewReactionsRepository.deleteUserReaction(
-            userId,
-            reviewId,
-            transactionEntityManger,
-          );
-
-          return true;
-        } else if (userReaction?.type !== Reaction.DISLIKE) {
+        if (isCancel && userReaction?.type === type) {
           if (userReaction?.type === Reaction.LIKE) {
             await this.reviewsRepository.decrementLikes(
               reviewId,
               transactionEntityManger,
             );
+          } else {
+            await this.reviewsRepository.decrementDislikes(
+              reviewId,
+              transactionEntityManger,
+            );
           }
-          await this.reviewsRepository.incrementDislikes(
+
+          await this.reviewReactionsRepository.deleteUserReaction(
+            userId,
             reviewId,
             transactionEntityManger,
           );
+
+          return true;
+        } else if (userReaction?.type !== type) {
+          if (type === Reaction.DISLIKE) {
+            if (review.likes) {
+              await this.reviewsRepository.decrementLikes(
+                reviewId,
+                transactionEntityManger,
+              );
+            }
+            await this.reviewsRepository.incrementDislikes(
+              reviewId,
+              transactionEntityManger,
+            );
+          } else {
+            if (review.dislikes) {
+              await this.reviewsRepository.decrementDislikes(
+                reviewId,
+                transactionEntityManger,
+              );
+            }
+            await this.reviewsRepository.incrementLikes(
+              reviewId,
+              transactionEntityManger,
+            );
+          }
+
           await this.reviewReactionsRepository.createOrUpdate(
             userId,
             reviewId,
-            Reaction.DISLIKE,
+            type,
             transactionEntityManger,
           );
 

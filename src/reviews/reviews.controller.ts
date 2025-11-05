@@ -9,9 +9,10 @@ import {
   Post,
   Query,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiQuery } from '@nestjs/swagger';
+import { ApiBearerAuth } from '@nestjs/swagger';
 import { CreateReviewDto } from './dto/create-review.dto';
 import { PatchReviewDto } from './dto/patch-review.dto';
+import { ReactionQueryDto } from './dto/reaction-query.dto';
 import { ReviewResponseDto } from './dto/review-response.dto';
 import { ReviewsFilterDto } from './dto/reviews-filter.dto';
 import { ReviewsService } from './reviews.service';
@@ -97,40 +98,20 @@ export class ReviewsController {
   }
 
   /**
-   * Like review
+   * React review
    *
    * @throws {400} Bad request
    * @throws {401} Unauthorized
    * @throws {404} Notfound
    */
   @ApiBearerAuth()
-  @ApiQuery({ name: 'cancel', type: 'boolean', required: false })
   @Roles(UserRole.ADMIN, UserRole.STUDENT)
-  @Post(':id/like')
-  setLike(
+  @Post(':id/react')
+  setReaction(
     @User('id') userId: string,
     @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('cancel') cancel: string,
+    @Query() query: ReactionQueryDto,
   ): Promise<boolean> {
-    return this.reviewsService.setLike(userId, id, cancel === 'true');
-  }
-
-  /**
-   * Dislike review
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {404} Notfound
-   */
-  @ApiBearerAuth()
-  @ApiQuery({ name: 'cancel', type: 'boolean', required: false })
-  @Roles(UserRole.ADMIN, UserRole.STUDENT)
-  @Post(':id/dislike')
-  setDislike(
-    @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-    @Query('cancel') cancel: string,
-  ): Promise<boolean> {
-    return this.reviewsService.setDislike(userId, id, cancel === 'true');
+    return this.reviewsService.setReaction(userId, id, query);
   }
 }
