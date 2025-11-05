@@ -3,59 +3,50 @@ import {
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import { plainToInstance } from 'class-transformer';
-import { Repository } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import { ConfirmOrderedCourseDto } from './dto/confirm-ordered-course.dto';
+import { UserCourseResponseDto } from './dto/user-course-response.dto';
 import { UserCourseEntity } from './entities/user-course.entity';
 import { PageableContentDto } from '../common/dto/pageable-content.dto';
 import { PaymentStatus } from '../payments/types';
 import { UserCoursesFilterDto } from './dto/user-courses-filter.dto';
-import { FIND_COURSE_RELATIONS } from '../cources/constants';
-import { UserCourseResponseDto } from './dto/user-course-response.dto';
 import { CoursesService } from '../cources/courses.service';
 import { CreateLectureProgressDto } from './dto/create-lecture-progress.dto';
 import { PatchLectureProgressDto } from './dto/patch-lecture-progress.dto';
 import { UserCourseLectureProgressResponseDto } from './dto/user-course-lecture-progress-response.dto';
 import { UserCourseLectureProgressEntity } from './entities/user-course-lecture-progress.entity';
+import { IUserCourse } from './interfaces/user-course.interface';
+import { UserCourseLecturesProgressRepository } from './repositories/user-course-lectures-progress.repository';
+import { UserCoursesRepository } from './repositories/user-courses.repository';
 
 @Injectable()
 export class UserCoursesService {
   constructor(
-    @InjectRepository(UserCourseEntity)
-    private readonly userCoursesRepository: Repository<UserCourseEntity>,
-    @InjectRepository(UserCourseLectureProgressEntity)
-    private readonly userCoursesProgressRepository: Repository<UserCourseLectureProgressEntity>,
+    private readonly userCoursesRepository: UserCoursesRepository,
+    private readonly userCoursesLecturesProgressRepository: UserCourseLecturesProgressRepository,
     private readonly coursesService: CoursesService,
   ) {}
 
-  private async findOne(
-    userId: string,
-    courseId: string,
-  ): Promise<UserCourseEntity> {
-    const userCourse = await this.userCoursesRepository.findOne({
-      where: { userId, courseId },
-    });
-    if (!userCourse) {
-      throw new NotFoundException(`User course doesn't exist`);
-    }
+  async createUserCourses(
+    dto: IUserCourse[],
+    transactionManger?: EntityManager,
+  ) {
+    return this.userCoursesRepository.createBulk(dto, transactionManger);
+  }
 
-    return userCourse;
+  async findByUserAndCourseIds(userId: string, courseIds: string[]) {
+    return this.userCoursesRepository.findByUserAndCourseIds(userId, courseIds);
   }
 
   async findAllOrderedCourses(
     userId: string,
     { status, isMy, page, size }: UserCoursesFilterDto,
   ): Promise<PageableContentDto<UserCourseResponseDto>> {
-    const [userCourses, total] = await this.userCoursesRepository.findAndCount({
-      where: { userId: isMy ? userId : undefined, status },
-      take: size,
-      skip: page * size,
-      relations: {
-        user: true,
-        course: FIND_COURSE_RELATIONS,
-      },
-    });
+    const [userCourses, total] = await this.userCoursesRepository.findAndCount(
+      userId,
+      { status, isMy, page, size },
+    );
 
     return {
       page,
@@ -75,15 +66,14 @@ export class UserCoursesService {
     courseId,
     comment,
   }: ConfirmOrderedCourseDto) {
-    await this.findOne(userId, courseId);
-    await this.userCoursesRepository.save({
+    await this.userCoursesRepository.getOne(userId, courseId);
+
+    return this.userCoursesRepository.updateOne({
       userId,
       courseId,
       comment,
       status: PaymentStatus.APPROVED,
     });
-
-    return true;
   }
 
   async rejectOrderedCourse({
@@ -91,15 +81,14 @@ export class UserCoursesService {
     courseId,
     comment,
   }: ConfirmOrderedCourseDto) {
-    await this.findOne(userId, courseId);
-    await this.userCoursesRepository.save({
+    await this.userCoursesRepository.getOne(userId, courseId);
+
+    return this.userCoursesRepository.updateOne({
       userId,
       courseId,
       comment,
       status: PaymentStatus.REJECTED,
     });
-
-    return true;
   }
 
   async prepareUserCourseResponse(
@@ -115,83 +104,70 @@ export class UserCoursesService {
     return res;
   }
 
-  private async checkLectureProgressPermissions(
+  async createLectureProgress(
     userId: string,
-    courseId: string,
-    lectureId?: string,
+    { courseId, lectureId }: CreateLectureProgressDto,
   ) {
     const isUserLearningCourse = await this.userCoursesRepository.exists({
-      where: { userId, courseId, status: PaymentStatus.APPROVED },
-      select: { courseId: true },
+      userId,
+      courseId,
+      status: PaymentStatus.APPROVED,
     });
     if (!isUserLearningCourse) {
       throw new ConflictException(
         `User doesn't have course ${courseId} in learning list`,
       );
     }
-    if (lectureId) {
-      const isLectureBelongCourse = await this.userCoursesRepository.exists({
-        where: {
-          course: {
-            id: courseId,
-            sections: {
-              lectures: {
-                id: lectureId,
-              },
+    const isLectureBelongCourse = await this.userCoursesRepository.exists(
+      {
+        course: {
+          id: courseId,
+          sections: {
+            lectures: {
+              id: lectureId,
             },
           },
         },
-        relations: {
-          course: {
-            sections: {
-              lectures: true,
-            },
-          },
-        },
-      });
-      if (!isLectureBelongCourse) {
-        throw new ConflictException(
-          `Course ${courseId} doesn't have lecture ${lectureId}`,
-        );
-      }
+      },
+      { includeCourse: true },
+    );
+    if (!isLectureBelongCourse) {
+      throw new ConflictException(
+        `Course ${courseId} doesn't have lecture ${lectureId}`,
+      );
     }
-  }
-
-  async createLectureProgress(
-    userId: string,
-    { courseId, lectureId }: CreateLectureProgressDto,
-  ) {
-    await this.checkLectureProgressPermissions(userId, courseId, lectureId);
     const isLectureProgressExists =
-      await this.userCoursesProgressRepository.exists({
-        where: { userId, courseId, lectureId },
+      await this.userCoursesLecturesProgressRepository.exists({
+        userId,
+        courseId,
+        lectureId,
       });
     if (isLectureProgressExists) {
       throw new ConflictException(
         `Progress for lecture ${lectureId} already exists`,
       );
     }
-    const userLectureProgress = await this.userCoursesProgressRepository.save({
-      userId,
-      courseId,
-      lectureId,
-    });
+    const userLectureProgress =
+      await this.userCoursesLecturesProgressRepository.create(userId, {
+        courseId,
+        lectureId,
+      });
 
     return this.prepareUserCourseLectureProgressResponse(userLectureProgress);
   }
 
   async patchLectureProgress(
     userId: string,
-    courseId: string,
     lectureId: string,
     dto: PatchLectureProgressDto,
   ) {
-    await this.checkLectureProgressPermissions(userId, courseId, lectureId);
-    const lectureProgress = await this.userCoursesProgressRepository.findOne({
-      where: { userId, courseId, lectureId },
-    });
+    const lectureProgress =
+      await this.userCoursesLecturesProgressRepository.getOne(
+        userId,
+        lectureId,
+      );
     const updatedLectureProgress =
-      await this.userCoursesProgressRepository.save({
+      await this.userCoursesLecturesProgressRepository.updateOne({
         ...lectureProgress,
         ...dto,
       });
@@ -203,16 +179,16 @@ export class UserCoursesService {
 
   async changeLectureProgressIsCompletedState(
     userId: string,
-    courseId: string,
     lectureId: string,
     isCompleted: boolean,
   ) {
-    await this.checkLectureProgressPermissions(userId, courseId, lectureId);
-    const lectureProgress = await this.userCoursesProgressRepository.findOne({
-      where: { userId, courseId, lectureId },
-    });
+    const lectureProgress =
+      await this.userCoursesLecturesProgressRepository.getOne(
+        userId,
+        lectureId,
+      );
     const updatedLectureProgress =
-      await this.userCoursesProgressRepository.save({
+      await this.userCoursesLecturesProgressRepository.updateOne({
         ...lectureProgress,
         isCompleted,
       });
@@ -223,23 +199,27 @@ export class UserCoursesService {
   }
 
   async resetCourseProgress(userId: string, courseId: string) {
-    await this.checkLectureProgressPermissions(userId, courseId);
-    const result = await this.userCoursesProgressRepository.update(
+    const isCourseProgressExists =
+      await this.userCoursesLecturesProgressRepository.exists({
+        userId,
+        courseId,
+      });
+    if (!isCourseProgressExists) {
+      throw new NotFoundException(`Progress for course ${courseId} not found`);
+    }
+    await this.userCoursesLecturesProgressRepository.update(
       { userId, courseId },
       { isCompleted: false, lastPositionSeconds: null },
     );
 
-    return !!result.affected;
+    return this.findCourseProgress(userId, courseId);
   }
 
   async findCourseProgress(userId: string, courseId: string) {
-    await this.checkLectureProgressPermissions(userId, courseId);
-    const lecturesProgress = await this.userCoursesProgressRepository.find({
-      where: { userId, courseId },
-      order: {
-        updatedAt: 'DESC',
-      },
-    });
+    const lecturesProgress =
+      await this.userCoursesLecturesProgressRepository.findAll({
+        where: { userId, courseId },
+      });
 
     return lecturesProgress.map((lecturesProgress) =>
       this.prepareUserCourseLectureProgressResponse(lecturesProgress),

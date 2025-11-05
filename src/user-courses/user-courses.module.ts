@@ -5,6 +5,8 @@ import { UserCoursesController } from './user-courses.controller';
 import { UserCoursesService } from './user-courses.service';
 import { CoursesModule } from '../cources/cources.module';
 import { UserCourseLectureProgressEntity } from './entities/user-course-lecture-progress.entity';
+import { UserCourseLecturesProgressRepository } from './repositories/user-course-lectures-progress.repository';
+import { UserCoursesRepository } from './repositories/user-courses.repository';
 
 @Module({
   imports: [
@@ -15,6 +17,11 @@ import { UserCourseLectureProgressEntity } from './entities/user-course-lecture-
     CoursesModule,
   ],
   controllers: [UserCoursesController],
-  providers: [UserCoursesService],
+  providers: [
+    UserCoursesService,
+    UserCoursesRepository,
+    UserCourseLecturesProgressRepository,
+  ],
+  exports: [UserCoursesService],
 })
 export class UserCoursesModule {}

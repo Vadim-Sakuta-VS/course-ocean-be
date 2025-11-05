@@ -8,26 +8,24 @@ import {
 import { ConfigService } from '@nestjs/config';
 import { JwtService } from '@nestjs/jwt';
 import { Cron, CronExpression } from '@nestjs/schedule';
-import { InjectRepository } from '@nestjs/typeorm';
 import bcrypt from 'bcrypt';
 import ms from 'ms';
-import { EntityManager, LessThan, MoreThan, Repository } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import type { Request, Response } from 'express';
 import { verifyEmailTemplate } from '../common/constants/email-templates';
 import { TransactionService } from '../common/services/transaction.service';
 import { __IS_PROD__ } from '../config/constants';
 import { MailerService } from '../mailer/mailer.service';
 import { AccessTokenResponseDto } from './dto/access-token-response.dto';
-import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UserEntity } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
-import { CreateUserProviderDto } from './dto/create-user-provider.dto';
 import { LoginDto } from './dto/login.dto';
-import { UserOTPEntity } from './entities/user-otp.entity';
-import { UserProvidersEntity } from './entities/user-providers.entity';
-import { UserSessionsEntity } from './entities/user-sessions.entity';
+import { IAuthUserViaProvider } from './interfaces/auth-user-via-provider.interface';
+import { UserProvidersRepository } from './repositories/user-providers.repository';
+import { UserSessionsRepository } from './repositories/user-sessions.repository';
 import { JwtPayload, JwtTokenType } from './types';
 import { getClientMetadata } from '../common/utils/clientMetadata';
+import { ICreateUser } from '../users/interfaces/create-user.interface';
 
 @Injectable()
 export class AuthService {
@@ -43,10 +41,8 @@ export class AuthService {
     private jwtService: JwtService,
     private configService: ConfigService,
     private mailerService: MailerService,
-    @InjectRepository(UserOTPEntity)
-    private userOTPRepository: Repository<UserOTPEntity>,
-    @InjectRepository(UserSessionsEntity)
-    private userSessionsRepository: Repository<UserSessionsEntity>,
+    private userSessionsRepository: UserSessionsRepository,
+    private userProvidersRepository: UserProvidersRepository,
     private transactionService: TransactionService,
   ) {
     AuthService.JWT_ACCESS_TOKEN_EXPIRATION_TIME =
@@ -67,10 +63,7 @@ export class AuthService {
 
   @Cron(CronExpression.EVERY_HOUR)
   async revokeUsersSessions() {
-    const result = await this.userSessionsRepository.update(
-      { expiresAt: LessThan(new Date()), isRevoked: false },
-      { isRevoked: true },
-    );
+    const result = await this.userSessionsRepository.revokeSessions();
     this.logger.log(
       `${result.affected} session${Number(result.affected) > 1 || !result.affected ? 's are' : ' is'} revoked`,
     );
@@ -79,7 +72,7 @@ export class AuthService {
   async signUp(
     req: Request,
     res: Response,
-    { firstName, lastName, email, password }: CreateUserDto,
+    { firstName, lastName, email, password }: ICreateUser,
   ): Promise<AccessTokenResponseDto> {
     return this.transactionService.runInTransaction(
       async (transactionEntityManger) => {
@@ -121,14 +114,13 @@ export class AuthService {
       isEmailVerified,
       providerType,
       providerId,
-    }: CreateUserProviderDto,
+    }: IAuthUserViaProvider,
   ): Promise<AccessTokenResponseDto> {
     return await this.transactionService.runInTransaction(
-      async (transactionEntityManger) => {
-        let user = await this.usersService.findOne(
-          { email },
-          transactionEntityManger,
-        );
+      async (transactionManger) => {
+        let user = await this.usersService.findOneByEmail(email, {
+          includeProviders: true,
+        });
         if (!user) {
           user = await this.usersService.createNewExternal(
             {
@@ -138,38 +130,35 @@ export class AuthService {
               avatarUrl,
               isEmailVerified,
             },
-            transactionEntityManger,
+            transactionManger,
           );
         }
-        const userProvidersRepository =
-          transactionEntityManger.getRepository(UserProvidersEntity);
         const provider = user.providers?.find(
           (provider) =>
             provider.providerId === providerId &&
             provider.type === providerType,
         );
         // создаем провайдер
-        await userProvidersRepository.save({
-          id: provider?.id,
-          user,
-          providerId,
-          type: providerType,
-        });
+        await this.userProvidersRepository.createOrUpdate(
+          {
+            id: provider?.id,
+            user,
+            providerId,
+            type: providerType,
+          },
+          transactionManger,
+        );
         // удалить провайдер, если изменилась локальная почта
-        await userProvidersRepository
-          .createQueryBuilder()
-          .delete()
-          .where('provider_id = :providerId', { providerId })
-          .andWhere(
-            'EXISTS (SELECT 1 FROM users u WHERE user_id = u.id AND email != :email)',
-            { email },
-          )
-          .execute();
+        await this.userProvidersRepository.deleteProviderByIdAndEmail(
+          providerId,
+          email,
+          transactionManger,
+        );
         try {
           await this.logout(
             res,
             req.cookies[AuthService.USER_SESSION_COOKIE_KEY] as string,
-            transactionEntityManger,
+            transactionManger,
           );
         } catch (error) {
           this.logger.error(
@@ -181,7 +170,7 @@ export class AuthService {
           req,
           res,
           user,
-          transactionEntityManger,
+          transactionManger,
         );
 
         return {
@@ -196,7 +185,7 @@ export class AuthService {
     res: Response,
     { email, password }: LoginDto,
   ): Promise<AccessTokenResponseDto> {
-    const user = await this.usersService.findOneByEmail(email);
+    const user = await this.usersService.getOneByEmail(email);
     const isPasswordsEqual = await bcrypt.compare(password, user.password);
     if (!isPasswordsEqual) {
       throw new ConflictException('Incorrect email or password');
@@ -220,23 +209,22 @@ export class AuthService {
     req: Request,
     res: Response,
     user: UserEntity,
-    transactionEntityManger?: EntityManager,
+    transactionManger?: EntityManager,
   ) {
-    const userSessionsRepository = transactionEntityManger
-      ? transactionEntityManger.getRepository(UserSessionsEntity)
-      : this.userSessionsRepository;
     const clientMetadata = getClientMetadata(req);
     const tokens = await this.generateTokens(user);
-    const userSession = userSessionsRepository.create({
-      user,
-      ipAddress: clientMetadata.ipAddress,
-      userAgentInfo: clientMetadata.userAgentInfo,
-      token: await this.getHashString(tokens.refreshToken),
-      expiresAt: new Date(
-        Date.now() + ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
-      ),
-    } as Partial<UserSessionsEntity>);
-    await userSessionsRepository.save(userSession);
+    const userSession = await this.userSessionsRepository.create(
+      {
+        user,
+        ipAddress: clientMetadata.ipAddress,
+        userAgentInfo: clientMetadata.userAgentInfo,
+        token: await this.getHashString(tokens.refreshToken),
+        expiresAt: new Date(
+          Date.now() + ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
+        ),
+      },
+      transactionManger,
+    );
     res.cookie(AuthService.USER_SESSION_COOKIE_KEY, userSession.id, {
       httpOnly: true,
       secure: __IS_PROD__,
@@ -249,16 +237,13 @@ export class AuthService {
   async logout(
     res: Response,
     userSessionId: string,
-    transactionEntityManger?: EntityManager,
+    transactionManger?: EntityManager,
   ) {
     try {
       if (userSessionId) {
-        const userSessionsRepository = transactionEntityManger
-          ? transactionEntityManger?.getRepository(UserSessionsEntity)
-          : this.userSessionsRepository;
-        await userSessionsRepository.update(
-          { id: userSessionId },
-          { isRevoked: true },
+        await this.userSessionsRepository.revokeSessionById(
+          userSessionId,
+          transactionManger,
         );
       }
       res.clearCookie(AuthService.USER_SESSION_COOKIE_KEY);
@@ -274,14 +259,10 @@ export class AuthService {
     if (!userSessionId) {
       throw new UnauthorizedException();
     }
-    const userSession = await this.userSessionsRepository.findOne({
-      where: {
-        id: userSessionId,
-        expiresAt: MoreThan(new Date()),
-        isRevoked: false,
-      },
-      relations: { user: true },
-    });
+    const userSession = await this.userSessionsRepository.findActiveSessionById(
+      userSessionId,
+      { includeUser: true },
+    );
     if (!userSession) {
       throw new UnauthorizedException();
     }

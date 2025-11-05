@@ -36,12 +36,14 @@ import {
   MAX_IMAGE_SIZE,
   MAX_VIDEO_SIZE,
 } from '../common/constants';
+import { ICourse } from './interfaces/course.interface';
 import { ApiOkPageableContentResponse } from '../common/decorators/api-ok-pageable-content-response.decorator';
 import { User } from '../common/decorators/user.decorator';
+import { DeletedIdResponseDto } from '../common/dto/deleted-id-response.dto';
+import { DeletedIdsResponseDto } from '../common/dto/deleted-ids-response.dto';
 import { FileResponseDto } from '../common/dto/file-response.dto';
 import { IdsDto } from '../common/dto/ids.dto';
 import { PageableContentDto } from '../common/dto/pageable-content.dto';
-import { StringValueDto } from '../common/dto/string-value.dto';
 import { MimeType } from '../common/types/enums';
 import { UserRole } from '../users/entities/user.entity';
 
@@ -101,7 +103,7 @@ export class CoursesController {
     @User('id') userId: string,
     @Body() dto: CreateCourseDto,
   ): Promise<CourseResponseDto> {
-    return this.coursesService.create(userId, dto);
+    return this.coursesService.create({ ...dto, authorId: userId });
   }
 
   /**
@@ -114,7 +116,10 @@ export class CoursesController {
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
   @Delete('/courses/bulk')
-  deleteBulkCourses(@User('id') userId: string, @Body() dto: IdsDto) {
+  deleteBulkCourses(
+    @User('id') userId: string,
+    @Body() dto: IdsDto,
+  ): Promise<DeletedIdsResponseDto> {
     return this.coursesService.deleteBulkCourses(userId, dto.ids);
   }
 
@@ -136,7 +141,10 @@ export class CoursesController {
   ): Promise<CourseResponseDto> {
     const cleanDto = JSON.parse(JSON.stringify(dto)) as PatchedCourseDto;
 
-    return this.coursesService.patchCourse(userId, id, cleanDto);
+    return this.coursesService.patchCourse(userId, id, {
+      authorId: userId,
+      ...cleanDto,
+    } as ICourse);
   }
 
   /**
@@ -276,12 +284,8 @@ export class CoursesController {
   deleteBulkCourseSections(
     @User('id') userId: string,
     @Body() dto: IdsDto,
-  ): Promise<boolean> {
-    return this.coursesService.deleteBulkCourseSections(
-      userId,
-      'TODO',
-      dto.ids,
-    );
+  ): Promise<DeletedIdsResponseDto> {
+    return this.coursesService.deleteBulkCourseSections(userId, dto.ids);
   }
 
   /**
@@ -297,16 +301,9 @@ export class CoursesController {
   @Delete('/lectures/bulk')
   deleteBulkCourseLectures(
     @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
     @Body() dto: IdsDto,
-  ): Promise<boolean> {
-    return this.coursesService.deleteBulkCourseLectures(
-      userId,
-      courseId,
-      sectionId,
-      dto.ids,
-    );
+  ): Promise<DeletedIdsResponseDto> {
+    return this.coursesService.deleteBulkCourseLectures(userId, dto.ids);
   }
 
   /**
@@ -342,8 +339,6 @@ export class CoursesController {
   @Post('/lectures/:lectureId/video')
   uploadLectureVideo(
     @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
     @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
     @UploadedFile(
       new ParseFilePipe({
@@ -358,14 +353,7 @@ export class CoursesController {
     file: Express.Multer.File,
     @Body() dto: UploadLectureVideoDto,
   ): Promise<FileResponseDto> {
-    return this.coursesService.uploadLectureVideo(
-      userId,
-      courseId,
-      sectionId,
-      lectureId,
-      file,
-      dto,
-    );
+    return this.coursesService.uploadLectureVideo(userId, lectureId, file, dto);
   }
 
   /**
@@ -382,18 +370,10 @@ export class CoursesController {
   @Delete('/lectures/video/:fileId')
   deleteLectureVideo(
     @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
     @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
-  ): Promise<boolean> {
-    return this.coursesService.deleteLectureVideo(
-      userId,
-      courseId,
-      sectionId,
-      lectureId,
-      fileId,
-    );
+  ): Promise<DeletedIdResponseDto> {
+    return this.coursesService.deleteLectureVideo(userId, lectureId, fileId);
   }
 
   /**
@@ -410,15 +390,11 @@ export class CoursesController {
   @Post('/lectures/video/:fileId/make-public')
   makePublicLectureVideo(
     @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
     @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
   ): Promise<boolean> {
     return this.coursesService.updatePublicStateLectureVideo(
       userId,
-      courseId,
-      sectionId,
       lectureId,
       fileId,
       true,
@@ -439,15 +415,11 @@ export class CoursesController {
   @Post('/lectures/video/:fileId/make-private')
   makePrivateLectureVideo(
     @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
     @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
   ): Promise<boolean> {
     return this.coursesService.updatePublicStateLectureVideo(
       userId,
-      courseId,
-      sectionId,
       lectureId,
       fileId,
       false,

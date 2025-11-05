@@ -3,140 +3,85 @@ import {
   forwardRef,
   Inject,
   Injectable,
-  NotFoundException,
 } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import {
-  EntityManager,
-  FindOneOptions,
-  FindOptionsWhere,
-  In,
-  Repository,
-} from 'typeorm';
-import { CreateUserExternalDto } from './dto/create-user-external.dto';
-import { CreateUserDto } from './dto/create-user.dto';
+import { EntityManager } from 'typeorm';
 import { UserEntity } from './entities/user.entity';
-import { FIND_COURSE_RELATIONS } from '../cources/constants';
 import { WishListEntity } from './entities/wish-list.entity';
 import { CoursesService } from '../cources/courses.service';
+import { ICreateUserExternal } from './interfaces/create-user-external.interface';
+import { ICreateUser } from './interfaces/create-user.interface';
+import { UsersRepository } from './repositories/users.repository';
+import { IncludeQueryOptions } from './repositories/users.types';
+import { WishListRepository } from './repositories/wish-list.repository';
 
 @Injectable()
 export class UsersService {
   constructor(
-    @InjectRepository(UserEntity)
-    private readonly usersRepository: Repository<UserEntity>,
-    @InjectRepository(WishListEntity)
-    private readonly wishListRepository: Repository<WishListEntity>,
+    private readonly usersRepository: UsersRepository,
+    private readonly wishListRepository: WishListRepository,
     @Inject(forwardRef(() => CoursesService))
     private readonly coursesService: CoursesService,
   ) {}
 
-  async createNew(
-    { firstName, lastName, email, password }: CreateUserDto,
+  createNew(
+    dto: ICreateUser,
     transactionEntityManger?: EntityManager,
   ): Promise<UserEntity> {
-    return await this.create(
-      { firstName, lastName, email, password },
-      transactionEntityManger,
-    );
+    return this.create(dto, transactionEntityManger);
   }
 
-  async createNewExternal(
-    {
-      email,
-      firstName,
-      lastName,
-      avatarUrl,
-      isEmailVerified,
-    }: CreateUserExternalDto,
+  createNewExternal(
+    dto: ICreateUserExternal,
     transactionEntityManger?: EntityManager,
   ) {
-    return await this.create(
-      {
-        firstName,
-        lastName,
-        email,
-        avatarUrl: avatarUrl || undefined,
-        isEmailVerified,
-      },
-      transactionEntityManger,
-    );
+    return this.create(dto, transactionEntityManger);
   }
 
   private async create(
     payload: Partial<UserEntity>,
     transactionEntityManger?: EntityManager,
   ): Promise<UserEntity> {
-    const usersRepository = transactionEntityManger
-      ? transactionEntityManger.getRepository(UserEntity)
-      : this.usersRepository;
-    const user = await usersRepository.findOne({
-      where: { email: payload.email },
-    });
-    if (user) {
-      throw new ConflictException(
-        `User already exists with email ${payload.email}`,
-      );
+    if (payload.email) {
+      const user = await this.usersRepository.findOneByEmail(payload.email);
+      if (user) {
+        throw new ConflictException(
+          `User already exists with email ${payload.email}`,
+        );
+      }
     }
 
-    return await usersRepository.save(payload);
+    return this.usersRepository.create(payload, transactionEntityManger);
   }
 
-  async findOneById(
+  findOneById(id: string, options?: IncludeQueryOptions) {
+    return this.usersRepository.findOneById(id, options);
+  }
+
+  async getOneById(
     id: string,
-    options?: FindOneOptions<UserEntity>,
+    options?: IncludeQueryOptions,
   ): Promise<UserEntity> {
-    const user = await this.usersRepository.findOne({
-      ...options,
-      where: { id, ...options?.where },
-    });
-    if (!user) {
-      throw new NotFoundException(`User with id ${id} not found`);
-    }
-
-    return user;
+    return this.usersRepository.getOneById(id, options);
   }
 
-  async findOneByEmail(email: string): Promise<UserEntity> {
-    const user = await this.usersRepository.findOne({ where: { email } });
-    if (!user) {
-      throw new NotFoundException(`User with email ${email} not found`);
-    }
-
-    return user;
+  findOneByEmail(email: string, options?: IncludeQueryOptions) {
+    return this.usersRepository.findOneByEmail(email, options);
   }
 
-  async findOne(
-    where: FindOptionsWhere<UserEntity>,
-    transactionEntityManger?: EntityManager,
-  ): Promise<UserEntity | null> {
-    const usersRepository = transactionEntityManger
-      ? transactionEntityManger.getRepository(UserEntity)
-      : this.usersRepository;
-
-    return await usersRepository.findOne({
-      where,
-      relations: { providers: true },
-    });
+  getOneByEmail(email: string, options?: IncludeQueryOptions) {
+    return this.usersRepository.getOneByEmail(email, options);
   }
 
   async updateEmailVerificationToken(userId: string, token: string) {
-    const result = await this.usersRepository.update(
-      { id: userId },
-      { emailVerificationToken: token },
-    );
+    const user = await this.usersRepository.updateOneById(userId, {
+      emailVerificationToken: token,
+    });
 
-    return !!result.affected;
+    return user.emailVerificationToken === token;
   }
 
   async addCoursesToWishList(userId: string, courseIds: string[]) {
-    const result = await this.wishListRepository.upsert(
-      courseIds.map((courseId) => ({ userId, courseId })),
-      {
-        conflictPaths: ['userId', 'courseId'],
-        skipUpdateIfNoValuesChanged: true,
-      },
-    );
+    const result = await this.wishListRepository.upsertBulk(userId, courseIds);
 
     return {
       ids: (result.identifiers as WishListEntity[]).map(
@@ -146,20 +91,12 @@ export class UsersService {
   }
 
   async deleteCoursesFromWishList(userId: string, courseIds: string[]) {
-    const result = await this.wishListRepository.delete({
-      userId,
-      courseId: In(courseIds),
-    });
-
-    return !!result.affected;
+    return this.wishListRepository.deleteBulk(userId, courseIds);
   }
 
   async getWishList(userId: string) {
-    const user = await this.usersRepository.findOne({
-      where: { id: userId },
-      relations: {
-        wishList: FIND_COURSE_RELATIONS,
-      },
+    const user = await this.usersRepository.findOneById(userId, {
+      includeWishList: true,
     });
 
     return await Promise.all(

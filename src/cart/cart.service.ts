@@ -1,25 +1,21 @@
 import { Injectable } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, Repository } from 'typeorm';
+import { EntityManager } from 'typeorm';
 import { CartOrdersEntity } from './entities/cart-orders.entity';
-import { FIND_COURSE_RELATIONS } from '../cources/constants';
 import { CoursesService } from '../cources/courses.service';
 import { UsersService } from '../users/users.service';
+import { CartOrdersRepository } from './repositories/cart-orders.repository';
 
 @Injectable()
 export class CartService {
   constructor(
-    @InjectRepository(CartOrdersEntity)
-    private readonly cartOrdersRepository: Repository<CartOrdersEntity>,
+    private readonly cartOrdersRepository: CartOrdersRepository,
     private readonly userService: UsersService,
     private readonly coursesService: CoursesService,
   ) {}
 
   async getCart(userId: string) {
     const user = await this.userService.findOneById(userId, {
-      relations: {
-        cartOrders: FIND_COURSE_RELATIONS,
-      },
+      includeCartOrders: true,
     });
 
     return await Promise.all(
@@ -30,12 +26,9 @@ export class CartService {
   }
 
   async addOrders(userId: string, coursesIds: string[]) {
-    const result = await this.cartOrdersRepository.upsert(
-      coursesIds.map((courseId) => ({ userId, courseId })),
-      {
-        conflictPaths: ['userId', 'courseId'],
-        skipUpdateIfNoValuesChanged: true,
-      },
+    const result = await this.cartOrdersRepository.upsertOrders(
+      userId,
+      coursesIds,
     );
 
     return {
@@ -48,16 +41,12 @@ export class CartService {
   async deleteOrders(
     userId: string,
     courseIds: string[],
-    transactionEntityManager?: EntityManager,
+    transactionManager?: EntityManager,
   ) {
-    const cartOrdersRepository = transactionEntityManager
-      ? transactionEntityManager.getRepository(CartOrdersEntity)
-      : this.cartOrdersRepository;
-    const result = await cartOrdersRepository.delete({
+    return this.cartOrdersRepository.deleteBulkByIds(
       userId,
-      courseId: In(courseIds),
-    });
-
-    return !!result.affected;
+      courseIds,
+      transactionManager,
+    );
   }
 }

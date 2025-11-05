@@ -27,7 +27,7 @@ export class FileEntity {
   size: number;
 
   @Column({ type: 'integer', nullable: true })
-  duration: number;
+  duration: number | null;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

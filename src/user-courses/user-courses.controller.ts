@@ -106,7 +106,6 @@ export class UserCoursesController {
   @Patch('/progress/lectures/:lectureId')
   patchLectureProgress(
     @User('id') userId: string,
-    @Param('courseId', new ParseUUIDPipe()) courseId: string,
     @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
     @Body() dto: PatchLectureProgressDto,
   ): Promise<UserCourseLectureProgressResponseDto> {
@@ -114,7 +113,6 @@ export class UserCoursesController {
 
     return this.userCoursesService.patchLectureProgress(
       userId,
-      courseId,
       lectureId,
       cleanDto,
     );
@@ -133,12 +131,10 @@ export class UserCoursesController {
   @Post('/progress/lectures/:lectureId/complete')
   completeLectureProgress(
     @User('id') userId: string,
-    @Param('courseId', new ParseUUIDPipe()) courseId: string,
     @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
   ): Promise<UserCourseLectureProgressResponseDto> {
     return this.userCoursesService.changeLectureProgressIsCompletedState(
       userId,
-      courseId,
       lectureId,
       true,
     );
@@ -157,12 +153,10 @@ export class UserCoursesController {
   @Post('/progress/lectures/:lectureId/reset')
   resetLectureProgress(
     @User('id') userId: string,
-    @Param('courseId', new ParseUUIDPipe()) courseId: string,
     @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
   ): Promise<UserCourseLectureProgressResponseDto> {
     return this.userCoursesService.changeLectureProgressIsCompletedState(
       userId,
-      courseId,
       lectureId,
       false,
     );
@@ -182,7 +176,7 @@ export class UserCoursesController {
   resetCourseProgress(
     @User('id') userId: string,
     @Param('courseId', new ParseUUIDPipe()) courseId: string,
-  ): Promise<boolean> {
+  ): Promise<UserCourseLectureProgressResponseDto[]> {
     return this.userCoursesService.resetCourseProgress(userId, courseId);
   }
 

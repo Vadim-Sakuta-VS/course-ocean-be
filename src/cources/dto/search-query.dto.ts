@@ -2,7 +2,6 @@ import { ApiProperty } from '@nestjs/swagger';
 import { Transform, Type } from 'class-transformer';
 import {
   IsArray,
-  IsBoolean,
   IsDateString,
   IsEnum,
   IsInt,
@@ -15,33 +14,22 @@ import {
 import { IsBooleanQuery } from '../../common/decorators/is-boolean-query.decorator';
 import { IsDateRange } from '../../common/decorators/is-date-range.decorator';
 import { PageableFilterDto } from '../../common/dto/pageable-filter.dto';
-import { CourseLevel } from '../entities/course.entity';
+import { CourseLevel } from '../interfaces/course.interface';
+import {
+  CourseDurationFilter,
+  CoursePriceFilter,
+  CourseSorting,
+  ICoursesFilter,
+} from '../interfaces/courses-filter.interface';
 
-export enum CourseDurationFilter {
-  NIL_TO_ONE_HOUR,
-  ONE_TO_TWO_HOURS,
-  TWO_TO_FIVE_HOURS,
-  FIVE_TO_TEN_HOURS,
-  MORE_TEN_HOURS,
-}
-
-export enum CoursePriceFilter {
-  PAID,
-  FREE,
-}
-
-export enum CourseSorting {
-  POPULAR,
-  NEW,
-  HIGHEST_PRICE,
-  LOWEST_PRICE,
-}
-
-export class CoursesFilterDto extends PageableFilterDto {
+export class CoursesFilterDto
+  extends PageableFilterDto
+  implements ICoursesFilter
+{
   @ApiProperty({ required: false })
   @IsOptional()
   @IsDateString({ strict: true })
-  creationDateStart: Date;
+  creationDateStart: string;
 
   @ApiProperty({ required: false })
   @IsOptional()

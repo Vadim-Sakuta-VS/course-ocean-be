@@ -10,12 +10,14 @@ import { UserProvidersEntity } from './entities/user-providers.entity';
 import { UserSessionsEntity } from './entities/user-sessions.entity';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import { RolesGuard } from './guards/roles.guard';
+import { UserProvidersRepository } from './repositories/user-providers.repository';
 import { GithubStrategy } from './strategies/github.strategy';
 import { GoogleStrategy } from './strategies/google.strategy';
 import { JwtStrategy } from './strategies/jwt.strategy';
 import { TransactionService } from '../common/services/transaction.service';
 import { UserEntity } from '../users/entities/user.entity';
 import { UsersModule } from '../users/users.module';
+import { UserSessionsRepository } from './repositories/user-sessions.repository';
 
 @Module({
   imports: [
@@ -43,6 +45,8 @@ import { UsersModule } from '../users/users.module';
     JwtStrategy,
     GoogleStrategy,
     GithubStrategy,
+    UserSessionsRepository,
+    UserProvidersRepository,
   ],
 })
 export class AuthModule {}

@@ -19,6 +19,7 @@ import { Public } from '../auth/decorators/public.decorator';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ApiOkPageableContentResponse } from '../common/decorators/api-ok-pageable-content-response.decorator';
 import { User } from '../common/decorators/user.decorator';
+import { DeletedIdResponseDto } from '../common/dto/deleted-id-response.dto';
 import { PageableContentDto } from '../common/dto/pageable-content.dto';
 import { UserRole } from '../users/entities/user.entity';
 
@@ -91,7 +92,7 @@ export class ReviewsController {
     @User('id') userId: string,
     @User('roles') userRoles: UserRole[],
     @Param('id', new ParseUUIDPipe()) id: string,
-  ): Promise<boolean> {
+  ): Promise<DeletedIdResponseDto> {
     return this.reviewsService.delete(userId, userRoles, id);
   }
 

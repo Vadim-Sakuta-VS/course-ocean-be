@@ -4,6 +4,7 @@ import { UserRole } from './entities/user.entity';
 import { UsersService } from './users.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { User } from '../common/decorators/user.decorator';
+import { DeletedIdsResponseDto } from '../common/dto/deleted-ids-response.dto';
 import { IdsDto } from '../common/dto/ids.dto';
 import { CourseResponseDto } from '../cources/dto/course-response.dto';
 
@@ -51,7 +52,7 @@ export class UsersController {
   deleteCoursesFromWishList(
     @User('id') userId: string,
     @Body() dto: IdsDto,
-  ): Promise<boolean> {
+  ): Promise<DeletedIdsResponseDto> {
     return this.usersService.deleteCoursesFromWishList(userId, dto.ids);
   }
 }

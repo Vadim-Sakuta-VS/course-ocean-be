@@ -18,17 +18,7 @@ import { FileEntity } from '../../files/entities/file.entity';
 import { UserCourseLectureProgressEntity } from '../../user-courses/entities/user-course-lecture-progress.entity';
 import { UserCourseEntity } from '../../user-courses/entities/user-course.entity';
 import { UserEntity } from '../../users/entities/user.entity';
-
-export enum CourseLevel {
-  BEGINNER = 'BEGINNER',
-  INTERMEDIATE = 'INTERMEDIATE',
-  ADVANCED = 'ADVANCED',
-}
-
-export enum Language {
-  EN = 'EN',
-  RU = 'RU',
-}
+import { CourseLevel, Language } from '../interfaces/course.interface';
 
 @Entity('courses')
 export class CourseEntity {
