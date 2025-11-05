@@ -16,16 +16,21 @@ import { CreateLectureProgressDto } from './dto/create-lecture-progress.dto';
 import { PatchLectureProgressDto } from './dto/patch-lecture-progress.dto';
 import { UserCourseLectureProgressResponseDto } from './dto/user-course-lecture-progress-response.dto';
 import { UserCourseLectureProgressEntity } from './entities/user-course-lecture-progress.entity';
+import { WishListEntity } from './entities/wish-list.entity';
 import { IUserCourse } from './interfaces/user-course.interface';
 import { UserCourseLecturesProgressRepository } from './repositories/user-course-lectures-progress.repository';
 import { UserCoursesRepository } from './repositories/user-courses.repository';
+import { WishListRepository } from './repositories/wish-list.repository';
+import { UsersService } from '../users/users.service';
 
 @Injectable()
 export class UserCoursesService {
   constructor(
     private readonly userCoursesRepository: UserCoursesRepository,
     private readonly userCoursesLecturesProgressRepository: UserCourseLecturesProgressRepository,
+    private readonly wishListRepository: WishListRepository,
     private readonly coursesService: CoursesService,
+    private readonly usersService: UsersService,
   ) {}
 
   async createUserCourses(
@@ -235,6 +240,32 @@ export class UserCoursesService {
       {
         excludeExtraneousValues: true,
       },
+    );
+  }
+
+  async addCoursesToWishList(userId: string, courseIds: string[]) {
+    const result = await this.wishListRepository.upsertBulk(userId, courseIds);
+
+    return {
+      ids: (result.identifiers as WishListEntity[]).map(
+        ({ courseId }) => courseId,
+      ),
+    };
+  }
+
+  async deleteCoursesFromWishList(userId: string, courseIds: string[]) {
+    return this.wishListRepository.deleteBulk(userId, courseIds);
+  }
+
+  async getWishList(userId: string) {
+    const user = await this.usersService.findOneById(userId, {
+      includeWishList: true,
+    });
+
+    return await Promise.all(
+      user?.wishList.map((course) =>
+        this.coursesService.prepareCourseResponse(course),
+      ) || [],
     );
   }
 }

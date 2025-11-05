@@ -1,4 +1,4 @@
-import { forwardRef, Module } from '@nestjs/common';
+import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { CoursesController } from './courses.controller';
 import { CoursesService } from './courses.service';
@@ -22,7 +22,7 @@ import { FilesRepository } from '../files/repositories/files.repository';
       LectureContentEntity,
       FileEntity,
     ]),
-    forwardRef(() => UsersModule),
+    UsersModule,
   ],
   controllers: [CoursesController],
   providers: [

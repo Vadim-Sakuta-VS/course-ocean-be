@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -21,7 +22,10 @@ import { UserCoursesService } from './user-courses.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ApiOkPageableContentResponse } from '../common/decorators/api-ok-pageable-content-response.decorator';
 import { User } from '../common/decorators/user.decorator';
+import { DeletedIdsResponseDto } from '../common/dto/deleted-ids-response.dto';
+import { IdsDto } from '../common/dto/ids.dto';
 import { PageableContentDto } from '../common/dto/pageable-content.dto';
+import { CourseResponseDto } from '../cources/dto/course-response.dto';
 import { UserRole } from '../users/entities/user.entity';
 
 @Controller('user-courses')
@@ -195,5 +199,49 @@ export class UserCoursesController {
     @Param('courseId', new ParseUUIDPipe()) courseId: string,
   ): Promise<UserCourseLectureProgressResponseDto[]> {
     return this.userCoursesService.findCourseProgress(userId, courseId);
+  }
+
+  /**
+   * Get wish list
+   *
+   * @throws {401} Unauthorized
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN, UserRole.STUDENT)
+  @Get('wish-list')
+  getWishList(@User('id') userId: string): Promise<CourseResponseDto[]> {
+    return this.userCoursesService.getWishList(userId);
+  }
+
+  /**
+   * Add courses to wish list
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN, UserRole.STUDENT)
+  @Post('wish-list')
+  addCoursesToWishList(
+    @User('id') userId: string,
+    @Body() dto: IdsDto,
+  ): Promise<IdsDto> {
+    return this.userCoursesService.addCoursesToWishList(userId, dto.ids);
+  }
+
+  /**
+   * Delete courses from wish list
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN, UserRole.STUDENT)
+  @Delete('wish-list')
+  deleteCoursesFromWishList(
+    @User('id') userId: string,
+    @Body() dto: IdsDto,
+  ): Promise<DeletedIdsResponseDto> {
+    return this.userCoursesService.deleteCoursesFromWishList(userId, dto.ids);
   }
 }

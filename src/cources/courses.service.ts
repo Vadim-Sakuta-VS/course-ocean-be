@@ -2,8 +2,6 @@ import {
   BadRequestException,
   ConflictException,
   ForbiddenException,
-  forwardRef,
-  Inject,
   Injectable,
 } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
@@ -39,7 +37,6 @@ export class CoursesService {
     private readonly lectureContentRepository: LectureContentRepository,
     private readonly filesRepository: FilesRepository,
     private readonly transactionService: TransactionService,
-    @Inject(forwardRef(() => UsersService))
     private readonly usersService: UsersService,
     private readonly s3Service: S3Service,
   ) {}

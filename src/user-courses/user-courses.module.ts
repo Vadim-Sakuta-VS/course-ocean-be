@@ -7,20 +7,26 @@ import { CoursesModule } from '../cources/cources.module';
 import { UserCourseLectureProgressEntity } from './entities/user-course-lecture-progress.entity';
 import { UserCourseLecturesProgressRepository } from './repositories/user-course-lectures-progress.repository';
 import { UserCoursesRepository } from './repositories/user-courses.repository';
+import { UsersModule } from '../users/users.module';
+import { WishListEntity } from './entities/wish-list.entity';
+import { WishListRepository } from './repositories/wish-list.repository';
 
 @Module({
   imports: [
     TypeOrmModule.forFeature([
       UserCourseEntity,
       UserCourseLectureProgressEntity,
+      WishListEntity,
     ]),
     CoursesModule,
+    UsersModule,
   ],
   controllers: [UserCoursesController],
   providers: [
     UserCoursesService,
     UserCoursesRepository,
     UserCourseLecturesProgressRepository,
+    WishListRepository,
   ],
   exports: [UserCoursesService],
 })

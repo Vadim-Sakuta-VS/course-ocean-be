@@ -1,27 +1,14 @@
-import {
-  ConflictException,
-  forwardRef,
-  Inject,
-  Injectable,
-} from '@nestjs/common';
+import { ConflictException, Injectable } from '@nestjs/common';
 import { EntityManager } from 'typeorm';
 import { UserEntity } from './entities/user.entity';
-import { WishListEntity } from './entities/wish-list.entity';
-import { CoursesService } from '../cources/courses.service';
 import { ICreateUserExternal } from './interfaces/create-user-external.interface';
 import { ICreateUser } from './interfaces/create-user.interface';
 import { UsersRepository } from './repositories/users.repository';
 import { IncludeQueryOptions } from './repositories/users.types';
-import { WishListRepository } from './repositories/wish-list.repository';
 
 @Injectable()
 export class UsersService {
-  constructor(
-    private readonly usersRepository: UsersRepository,
-    private readonly wishListRepository: WishListRepository,
-    @Inject(forwardRef(() => CoursesService))
-    private readonly coursesService: CoursesService,
-  ) {}
+  constructor(private readonly usersRepository: UsersRepository) {}
 
   createNew(
     dto: ICreateUser,
@@ -78,31 +65,5 @@ export class UsersService {
     });
 
     return user.emailVerificationToken === token;
-  }
-
-  async addCoursesToWishList(userId: string, courseIds: string[]) {
-    const result = await this.wishListRepository.upsertBulk(userId, courseIds);
-
-    return {
-      ids: (result.identifiers as WishListEntity[]).map(
-        ({ courseId }) => courseId,
-      ),
-    };
-  }
-
-  async deleteCoursesFromWishList(userId: string, courseIds: string[]) {
-    return this.wishListRepository.deleteBulk(userId, courseIds);
-  }
-
-  async getWishList(userId: string) {
-    const user = await this.usersRepository.findOneById(userId, {
-      includeWishList: true,
-    });
-
-    return await Promise.all(
-      user?.wishList.map((course) =>
-        this.coursesService.prepareCourseResponse(course),
-      ) || [],
-    );
   }
 }
