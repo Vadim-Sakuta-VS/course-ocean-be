@@ -22,5 +22,6 @@ import { TransactionService } from '../common/services/transaction.service';
     TopicsRepository,
   ],
   controllers: [DictionariesController],
+  exports: [DictionariesService],
 })
 export class DictionariesModule {}

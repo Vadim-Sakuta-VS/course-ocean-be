@@ -390,12 +390,10 @@ export class CoursesController {
   @Post('/lectures/video/:fileId/make-public')
   makePublicLectureVideo(
     @User('id') userId: string,
-    @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
   ): Promise<boolean> {
     return this.coursesService.updatePublicStateLectureVideo(
       userId,
-      lectureId,
       fileId,
       true,
     );
@@ -415,12 +413,10 @@ export class CoursesController {
   @Post('/lectures/video/:fileId/make-private')
   makePrivateLectureVideo(
     @User('id') userId: string,
-    @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
   ): Promise<boolean> {
     return this.coursesService.updatePublicStateLectureVideo(
       userId,
-      lectureId,
       fileId,
       false,
     );

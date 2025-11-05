@@ -7,9 +7,13 @@ import { ReviewsRepository } from './repositories/reviews.repository';
 import { ReviewsController } from './reviews.controller';
 import { ReviewsService } from './reviews.service';
 import { TransactionService } from '../common/services/transaction.service';
+import { CoursesModule } from '../cources/cources.module';
 
 @Module({
-  imports: [TypeOrmModule.forFeature([ReviewEntity, ReviewReactionEntity])],
+  imports: [
+    TypeOrmModule.forFeature([ReviewEntity, ReviewReactionEntity]),
+    CoursesModule,
+  ],
   controllers: [ReviewsController],
   providers: [
     ReviewsService,

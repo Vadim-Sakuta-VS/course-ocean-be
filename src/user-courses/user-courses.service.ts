@@ -244,6 +244,7 @@ export class UserCoursesService {
   }
 
   async addCoursesToWishList(userId: string, courseIds: string[]) {
+    await this.coursesService.checkExistAllIds(courseIds);
     const result = await this.wishListRepository.upsertBulk(userId, courseIds);
 
     return {

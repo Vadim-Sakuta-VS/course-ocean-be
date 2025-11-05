@@ -26,6 +26,7 @@ import {
 import { SectionContentRepository } from './repositories/section-content.repository';
 import { PageableContentDto } from '../common/dto/pageable-content.dto';
 import { S3Service } from '../common/services/s3';
+import { DictionariesService } from '../dictionaries/dictionaries.service';
 import { FileEntity } from '../files/entities/file.entity';
 import { FilesRepository } from '../files/repositories/files.repository';
 
@@ -38,10 +39,14 @@ export class CoursesService {
     private readonly filesRepository: FilesRepository,
     private readonly transactionService: TransactionService,
     private readonly usersService: UsersService,
+    private readonly dictionariesService: DictionariesService,
     private readonly s3Service: S3Service,
   ) {}
 
   async create(dto: ICreateCourse) {
+    if (dto.topicId) {
+      await this.dictionariesService.findOneTopic(dto.topicId);
+    }
     const course = await this.coursesRepository.create(dto);
     course.author = await this.usersService.getOneById(dto.authorId);
 
@@ -94,6 +99,9 @@ export class CoursesService {
           includeSections: true,
         });
         this.checkUserCoursePermission(course, userId);
+        if (patchedCourse.topicId && course.topicId !== patchedCourse.topicId) {
+          await this.dictionariesService.findOneTopic(patchedCourse.topicId);
+        }
         const resultSections = sections.reduce((accSections, section) => {
           if (!section.id) {
             return [...accSections, section];
@@ -364,14 +372,12 @@ export class CoursesService {
 
   async updatePublicStateLectureVideo(
     userId: string,
-    lectureId: string,
     fileId: string,
     isPublic: boolean,
   ) {
-    await this.checkUserLecturesPermission([lectureId], userId);
-    const lecture = await this.lectureContentRepository.getOneById(lectureId, {
-      includeVideoFile: true,
-    });
+    const lecture =
+      await this.lectureContentRepository.getOneByVideoFileId(fileId);
+    await this.checkUserLecturesPermission([lecture.id], userId);
     if (lecture.videoFile) {
       if (isPublic) {
         await this.s3Service.makeObjectPublic(
@@ -451,5 +457,9 @@ export class CoursesService {
     }
 
     return price;
+  }
+
+  checkExistAllIds(courseIds: string[]) {
+    return this.coursesRepository.checkExistAllIds(courseIds);
   }
 }

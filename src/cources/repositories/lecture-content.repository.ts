@@ -27,6 +27,20 @@ export class LectureContentRepository extends BaseRepository<LectureContentEntit
     return lecture;
   }
 
+  async getOneByVideoFileId(fileId: string) {
+    const lecture = await this.repository.findOne({
+      where: { videoFile: { id: fileId } },
+      relations: { videoFile: true },
+    });
+    if (!lecture) {
+      throw new NotFoundException(
+        `Lecture with video file id ${fileId} not found`,
+      );
+    }
+
+    return lecture;
+  }
+
   async checkLecturesBelongToAuthor(authorId: string, lectureIds: string[]) {
     const lecturesCount = await this.repository.count({
       where: { id: In(lectureIds), section: { course: { authorId } } },

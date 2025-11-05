@@ -11,6 +11,7 @@ import { ReviewsRepository } from './repositories/reviews.repository';
 import { DeletedIdResponseDto } from '../common/dto/deleted-id-response.dto';
 import { PageableContentDto } from '../common/dto/pageable-content.dto';
 import { TransactionService } from '../common/services/transaction.service';
+import { CoursesService } from '../cources/courses.service';
 import { UserRole } from '../users/entities/user.entity';
 
 @Injectable()
@@ -18,6 +19,7 @@ export class ReviewsService {
   constructor(
     private readonly reviewsRepository: ReviewsRepository,
     private readonly reviewReactionsRepository: ReviewReactionsRepository,
+    private readonly coursesService: CoursesService,
     private readonly transactionService: TransactionService,
   ) {}
 
@@ -25,6 +27,7 @@ export class ReviewsService {
     userId: string,
     { textContent, rating, courseId }: ICreateReview,
   ) {
+    await this.coursesService.findOneCourse(courseId);
     const { id } = await this.reviewsRepository.create(userId, {
       textContent,
       rating,

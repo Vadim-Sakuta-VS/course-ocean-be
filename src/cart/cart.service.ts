@@ -25,10 +25,11 @@ export class CartService {
     );
   }
 
-  async addOrders(userId: string, coursesIds: string[]) {
+  async addOrders(userId: string, courseIds: string[]) {
+    await this.coursesService.checkExistAllIds(courseIds);
     const result = await this.cartOrdersRepository.upsertOrders(
       userId,
-      coursesIds,
+      courseIds,
     );
 
     return {

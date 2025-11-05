@@ -12,6 +12,7 @@ import { FileEntity } from '../files/entities/file.entity';
 import { UsersModule } from '../users/users.module';
 import { LectureContentRepository } from './repositories/lecture-content.repository';
 import { SectionContentRepository } from './repositories/section-content.repository';
+import { DictionariesModule } from '../dictionaries/dictionaries.module';
 import { FilesRepository } from '../files/repositories/files.repository';
 
 @Module({
@@ -23,6 +24,7 @@ import { FilesRepository } from '../files/repositories/files.repository';
       FileEntity,
     ]),
     UsersModule,
+    DictionariesModule,
   ],
   controllers: [CoursesController],
   providers: [
