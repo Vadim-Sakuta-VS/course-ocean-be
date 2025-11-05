@@ -281,6 +281,7 @@ export class CoursesService {
         return {
           id: prefixId,
           url: this.s3Service.getPublicUrl(fileKey),
+          originalFilename: file.originalname,
         };
       },
     );
@@ -339,6 +340,7 @@ export class CoursesService {
             fileKey,
             duration + DEFAULT_FILE_VIEW_TTL,
           ),
+      originalFilename: file.originalname,
     };
   }
 
@@ -407,6 +409,7 @@ export class CoursesService {
               )
             : null,
         duration: file.duration,
+        originalFilename: file.originalFilename,
       };
     };
     const res = plainToInstance(CourseResponseDto, course, {
