@@ -1,9 +1,10 @@
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { NestFactory } from '@nestjs/core';
+import { HttpAdapterHost, NestFactory } from '@nestjs/core';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
+import { AllExceptionsFilter } from './common/exception-filter';
 import { setupSwagger } from './config/swagger.config';
 
 async function bootstrap() {
@@ -16,6 +17,8 @@ async function bootstrap() {
       whitelist: true,
     }),
   );
+  const httpAdapterHost = app.get(HttpAdapterHost);
+  app.useGlobalFilters(new AllExceptionsFilter(httpAdapterHost));
   setupSwagger(app);
   await app.listen(configService.get('PORT') ?? 5000);
 }

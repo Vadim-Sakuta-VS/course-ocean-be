@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   HttpCode,
   HttpStatus,
@@ -21,7 +22,10 @@ import { UserCoursesService } from './user-courses.service';
 import { Roles } from '../auth/decorators/roles.decorator';
 import { ApiOkPageableContentResponse } from '../common/decorators/api-ok-pageable-content-response.decorator';
 import { User } from '../common/decorators/user.decorator';
+import { DeletedIdsResponseDto } from '../common/dto/deleted-ids-response.dto';
+import { IdsDto } from '../common/dto/ids.dto';
 import { PageableContentDto } from '../common/dto/pageable-content.dto';
+import { CourseResponseDto } from '../cources/dto/course-response.dto';
 import { UserRole } from '../users/entities/user.entity';
 
 @Controller('user-courses')
@@ -103,10 +107,9 @@ export class UserCoursesController {
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN, UserRole.STUDENT)
-  @Patch('/progress/courses/:courseId/lectures/:lectureId')
+  @Patch('/progress/lectures/:lectureId')
   patchLectureProgress(
     @User('id') userId: string,
-    @Param('courseId', new ParseUUIDPipe()) courseId: string,
     @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
     @Body() dto: PatchLectureProgressDto,
   ): Promise<UserCourseLectureProgressResponseDto> {
@@ -114,7 +117,6 @@ export class UserCoursesController {
 
     return this.userCoursesService.patchLectureProgress(
       userId,
-      courseId,
       lectureId,
       cleanDto,
     );
@@ -130,15 +132,13 @@ export class UserCoursesController {
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN, UserRole.STUDENT)
   @HttpCode(HttpStatus.OK)
-  @Post('/progress/courses/:courseId/lectures/:lectureId/complete')
+  @Post('/progress/lectures/:lectureId/complete')
   completeLectureProgress(
     @User('id') userId: string,
-    @Param('courseId', new ParseUUIDPipe()) courseId: string,
     @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
   ): Promise<UserCourseLectureProgressResponseDto> {
     return this.userCoursesService.changeLectureProgressIsCompletedState(
       userId,
-      courseId,
       lectureId,
       true,
     );
@@ -154,15 +154,13 @@ export class UserCoursesController {
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN, UserRole.STUDENT)
   @HttpCode(HttpStatus.OK)
-  @Post('/progress/courses/:courseId/lectures/:lectureId/reset')
+  @Post('/progress/lectures/:lectureId/reset')
   resetLectureProgress(
     @User('id') userId: string,
-    @Param('courseId', new ParseUUIDPipe()) courseId: string,
     @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
   ): Promise<UserCourseLectureProgressResponseDto> {
     return this.userCoursesService.changeLectureProgressIsCompletedState(
       userId,
-      courseId,
       lectureId,
       false,
     );
@@ -178,11 +176,11 @@ export class UserCoursesController {
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN, UserRole.STUDENT)
   @HttpCode(HttpStatus.OK)
-  @Post('/progress/courses/:courseId')
+  @Post('/progress/:courseId')
   resetCourseProgress(
     @User('id') userId: string,
     @Param('courseId', new ParseUUIDPipe()) courseId: string,
-  ): Promise<boolean> {
+  ): Promise<UserCourseLectureProgressResponseDto[]> {
     return this.userCoursesService.resetCourseProgress(userId, courseId);
   }
 
@@ -195,11 +193,55 @@ export class UserCoursesController {
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN, UserRole.STUDENT)
-  @Get('/progress/courses/:courseId')
+  @Get('/progress/:courseId')
   findCourseProgress(
     @User('id') userId: string,
     @Param('courseId', new ParseUUIDPipe()) courseId: string,
   ): Promise<UserCourseLectureProgressResponseDto[]> {
     return this.userCoursesService.findCourseProgress(userId, courseId);
+  }
+
+  /**
+   * Get wish list
+   *
+   * @throws {401} Unauthorized
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN, UserRole.STUDENT)
+  @Get('wish-list')
+  getWishList(@User('id') userId: string): Promise<CourseResponseDto[]> {
+    return this.userCoursesService.getWishList(userId);
+  }
+
+  /**
+   * Add courses to wish list
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN, UserRole.STUDENT)
+  @Post('wish-list')
+  addCoursesToWishList(
+    @User('id') userId: string,
+    @Body() dto: IdsDto,
+  ): Promise<IdsDto> {
+    return this.userCoursesService.addCoursesToWishList(userId, dto.ids);
+  }
+
+  /**
+   * Delete courses from wish list
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN, UserRole.STUDENT)
+  @Delete('wish-list')
+  deleteCoursesFromWishList(
+    @User('id') userId: string,
+    @Body() dto: IdsDto,
+  ): Promise<DeletedIdsResponseDto> {
+    return this.userCoursesService.deleteCoursesFromWishList(userId, dto.ids);
   }
 }

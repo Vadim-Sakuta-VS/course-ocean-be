@@ -43,7 +43,7 @@ export class LectureContentEntity {
 
   @OneToOne(() => FileEntity, { cascade: true })
   @JoinColumn({ name: 'video_file_id' })
-  videoFile: FileEntity;
+  videoFile: FileEntity | null;
 
   @OneToMany(
     () => UserCourseLectureProgressEntity,

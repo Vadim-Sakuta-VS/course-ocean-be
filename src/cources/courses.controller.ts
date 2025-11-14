@@ -36,16 +36,18 @@ import {
   MAX_IMAGE_SIZE,
   MAX_VIDEO_SIZE,
 } from '../common/constants';
+import { ICourse } from './interfaces/course.interface';
 import { ApiOkPageableContentResponse } from '../common/decorators/api-ok-pageable-content-response.decorator';
 import { User } from '../common/decorators/user.decorator';
+import { DeletedIdResponseDto } from '../common/dto/deleted-id-response.dto';
+import { DeletedIdsResponseDto } from '../common/dto/deleted-ids-response.dto';
 import { FileResponseDto } from '../common/dto/file-response.dto';
 import { IdsDto } from '../common/dto/ids.dto';
 import { PageableContentDto } from '../common/dto/pageable-content.dto';
-import { StringValueDto } from '../common/dto/string-value.dto';
 import { MimeType } from '../common/types/enums';
 import { UserRole } from '../users/entities/user.entity';
 
-@Controller('courses')
+@Controller()
 export class CoursesController {
   constructor(private coursesService: CoursesService) {}
 
@@ -57,7 +59,7 @@ export class CoursesController {
    */
   @ApiOkPageableContentResponse(CourseResponseDto)
   @Public()
-  @Get()
+  @Get('/courses')
   findAll(
     @Query() query: CoursesFilterDto,
     @User() user: Express.User,
@@ -76,7 +78,7 @@ export class CoursesController {
    * @throws {404} Not found
    */
   @Public()
-  @Get(':id')
+  @Get('/courses/:id')
   findOne(
     @User() user: Express.User,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -96,12 +98,12 @@ export class CoursesController {
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
-  @Post()
+  @Post('/courses')
   async create(
     @User('id') userId: string,
     @Body() dto: CreateCourseDto,
   ): Promise<CourseResponseDto> {
-    return this.coursesService.create(userId, dto);
+    return this.coursesService.create({ ...dto, authorId: userId });
   }
 
   /**
@@ -113,27 +115,12 @@ export class CoursesController {
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
-  @Delete('/bulk')
-  deleteBulkCourses(@User('id') userId: string, @Body() dto: IdsDto) {
-    return this.coursesService.deleteBulkCourses(userId, dto.ids);
-  }
-
-  /**
-   * Delete course by id
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {403} Forbidden
-   * @throws {404} Not found
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @Delete('/:id')
-  deleteCourse(
+  @Delete('/courses/bulk')
+  deleteBulkCourses(
     @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) id: string,
-  ) {
-    return this.coursesService.deleteCourse(userId, id);
+    @Body() dto: IdsDto,
+  ): Promise<DeletedIdsResponseDto> {
+    return this.coursesService.deleteBulkCourses(userId, dto.ids);
   }
 
   /**
@@ -146,7 +133,7 @@ export class CoursesController {
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
-  @Patch(':id')
+  @Patch('/courses/:id')
   patchCourse(
     @User('id') userId: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -154,7 +141,10 @@ export class CoursesController {
   ): Promise<CourseResponseDto> {
     const cleanDto = JSON.parse(JSON.stringify(dto)) as PatchedCourseDto;
 
-    return this.coursesService.patchCourse(userId, id, cleanDto);
+    return this.coursesService.patchCourse(userId, id, {
+      authorId: userId,
+      ...cleanDto,
+    } as ICourse);
   }
 
   /**
@@ -168,151 +158,13 @@ export class CoursesController {
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
   @UsePipes(new JsonPatchSyntaxPipe('operations'))
-  @Patch('/:id/json-patch')
+  @Patch('/courses/:id/json-patch')
   patchCourseViaJsonPatch(
     @User('id') userId: string,
     @Param('id', new ParseUUIDPipe()) id: string,
     @Body() dto: PatchCourseOperationsDto,
   ) {
     return this.coursesService.patchCourseViaJsonPatch(userId, id, dto);
-  }
-
-  /**
-   * Delete sections (bulk)
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {403} Forbidden
-   * @throws {404} Not found
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @Delete(':id/sections/bulk')
-  deleteBulkCourseSections(
-    @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Body() dto: IdsDto,
-  ): Promise<boolean> {
-    return this.coursesService.deleteBulkCourseSections(
-      userId,
-      courseId,
-      dto.ids,
-    );
-  }
-
-  /**
-   * Delete one section by id
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {403} Forbidden
-   * @throws {404} Not found
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @Delete(':id/sections/:sectionId')
-  deleteCourseSection(
-    @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
-  ): Promise<boolean> {
-    return this.coursesService.deleteCourseSection(userId, courseId, sectionId);
-  }
-
-  /**
-   * Delete lectures (bulk)
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {403} Forbidden
-   * @throws {404} Not found
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @Delete(':id/sections/:sectionId/lectures/bulk')
-  deleteBulkCourseLectures(
-    @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
-    @Body() dto: IdsDto,
-  ): Promise<boolean> {
-    return this.coursesService.deleteBulkCourseLectures(
-      userId,
-      courseId,
-      sectionId,
-      dto.ids,
-    );
-  }
-
-  /**
-   * Delete one lecture by id
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {403} Forbidden
-   * @throws {404} Not found
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @Delete(':id/sections/:sectionId/lectures/:lectureId')
-  deleteCourseLecture(
-    @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
-    @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
-  ): Promise<boolean> {
-    return this.coursesService.deleteCourseLecture(
-      userId,
-      courseId,
-      sectionId,
-      lectureId,
-    );
-  }
-
-  /**
-   * Delete one requirement by value
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {403} Forbidden
-   * @throws {404} Not found
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @Delete(':id/requirements')
-  deleteCourseRequirement(
-    @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Body() dto: StringValueDto,
-  ): Promise<boolean> {
-    return this.coursesService.deleteCourseRequirement(
-      userId,
-      courseId,
-      dto.value,
-    );
-  }
-
-  /**
-   * Delete one learning skill by value
-   *
-   * @throws {400} Bad request
-   * @throws {401} Unauthorized
-   * @throws {403} Forbidden
-   * @throws {404} Not found
-   */
-  @ApiBearerAuth()
-  @Roles(UserRole.ADMIN)
-  @Delete(':id/learning-skills')
-  deleteCourseLearningSkill(
-    @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Body() dto: StringValueDto,
-  ): Promise<boolean> {
-    return this.coursesService.deleteCourseLearningSkill(
-      userId,
-      courseId,
-      dto.value,
-    );
   }
 
   /**
@@ -326,7 +178,7 @@ export class CoursesController {
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
-  @Post('/:id/activate')
+  @Post('/courses/:id/activate')
   activateCourse(
     @User('id') userId: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -345,7 +197,7 @@ export class CoursesController {
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
   @HttpCode(HttpStatus.OK)
-  @Post('/:id/deactivate')
+  @Post('/courses/:id/deactivate')
   deactivateCourse(
     @User('id') userId: string,
     @Param('id', new ParseUUIDPipe()) id: string,
@@ -377,7 +229,7 @@ export class CoursesController {
   })
   @Roles(UserRole.ADMIN)
   @UseInterceptors(FileInterceptor('file'))
-  @Post(':id/cover')
+  @Post('/courses/:id/cover')
   uploadCourseCover(
     @User('id') userId: string,
     @Param('id', new ParseUUIDPipe()) courseId: string,
@@ -409,13 +261,49 @@ export class CoursesController {
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
-  @Delete(':id/cover/:fileId')
+  @Delete('/courses/cover/:fileId')
   deleteCourseCover(
     @User('id') userId: string,
     @Param('id', new ParseUUIDPipe()) courseId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
   ): Promise<boolean> {
     return this.coursesService.deleteCourseCover(userId, courseId, fileId);
+  }
+
+  /**
+   * Delete sections (bulk)
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Delete('/sections/bulk')
+  deleteBulkCourseSections(
+    @User('id') userId: string,
+    @Body() dto: IdsDto,
+  ): Promise<DeletedIdsResponseDto> {
+    return this.coursesService.deleteBulkCourseSections(userId, dto.ids);
+  }
+
+  /**
+   * Delete lectures (bulk)
+   *
+   * @throws {400} Bad request
+   * @throws {401} Unauthorized
+   * @throws {403} Forbidden
+   * @throws {404} Not found
+   */
+  @ApiBearerAuth()
+  @Roles(UserRole.ADMIN)
+  @Delete('/lectures/bulk')
+  deleteBulkCourseLectures(
+    @User('id') userId: string,
+    @Body() dto: IdsDto,
+  ): Promise<DeletedIdsResponseDto> {
+    return this.coursesService.deleteBulkCourseLectures(userId, dto.ids);
   }
 
   /**
@@ -448,11 +336,9 @@ export class CoursesController {
   })
   @Roles(UserRole.ADMIN)
   @UseInterceptors(FileInterceptor('file'))
-  @Post(':id/sections/:sectionId/lectures/:lectureId/video')
+  @Post('/lectures/:lectureId/video')
   uploadLectureVideo(
     @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
     @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
     @UploadedFile(
       new ParseFilePipe({
@@ -467,14 +353,7 @@ export class CoursesController {
     file: Express.Multer.File,
     @Body() dto: UploadLectureVideoDto,
   ): Promise<FileResponseDto> {
-    return this.coursesService.uploadLectureVideo(
-      userId,
-      courseId,
-      sectionId,
-      lectureId,
-      file,
-      dto,
-    );
+    return this.coursesService.uploadLectureVideo(userId, lectureId, file, dto);
   }
 
   /**
@@ -488,21 +367,13 @@ export class CoursesController {
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
-  @Delete(':id/sections/:sectionId/lectures/:lectureId/video/:fileId')
+  @Delete('/lectures/video/:fileId')
   deleteLectureVideo(
     @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
     @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
-  ): Promise<boolean> {
-    return this.coursesService.deleteLectureVideo(
-      userId,
-      courseId,
-      sectionId,
-      lectureId,
-      fileId,
-    );
+  ): Promise<DeletedIdResponseDto> {
+    return this.coursesService.deleteLectureVideo(userId, lectureId, fileId);
   }
 
   /**
@@ -516,19 +387,13 @@ export class CoursesController {
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
-  @Post(':id/sections/:sectionId/lectures/:lectureId/video/:fileId/make-public')
+  @Post('/lectures/video/:fileId/make-public')
   makePublicLectureVideo(
     @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
-    @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
   ): Promise<boolean> {
     return this.coursesService.updatePublicStateLectureVideo(
       userId,
-      courseId,
-      sectionId,
-      lectureId,
       fileId,
       true,
     );
@@ -545,21 +410,13 @@ export class CoursesController {
    */
   @ApiBearerAuth()
   @Roles(UserRole.ADMIN)
-  @Post(
-    ':id/sections/:sectionId/lectures/:lectureId/video/:fileId/make-private',
-  )
+  @Post('/lectures/video/:fileId/make-private')
   makePrivateLectureVideo(
     @User('id') userId: string,
-    @Param('id', new ParseUUIDPipe()) courseId: string,
-    @Param('sectionId', new ParseUUIDPipe()) sectionId: string,
-    @Param('lectureId', new ParseUUIDPipe()) lectureId: string,
     @Param('fileId', new ParseUUIDPipe()) fileId: string,
   ): Promise<boolean> {
     return this.coursesService.updatePublicStateLectureVideo(
       userId,
-      courseId,
-      sectionId,
-      lectureId,
       fileId,
       false,
     );

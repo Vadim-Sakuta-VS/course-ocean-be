@@ -1,12 +1,5 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { ILike, Repository } from 'typeorm';
-import {
-  CreateCategoryGroupDto,
-  CreateSubcategoriesGroupDto,
-  CreateTopicsGroupDto,
-} from './dto/create-category-group.dto';
 import {
   SubcategoryGroupResponseDto,
   SubcategoryResponseDto,
@@ -15,152 +8,106 @@ import {
 import { UpdateCategoryDto } from './dto/update-category.dto';
 import { UpdateSubcategoryDto } from './dto/update-subcategory.dto';
 import { UpdateTopicDto } from './dto/update-topic.dto';
-import { CategoryEntity } from './entities/category.entity';
-import { SubcategoryEntity } from './entities/subcategory.entity';
-import { TopicEntity } from './entities/topic.entity';
-import { TransactionService } from '../common/services/transaction.service';
+import { ICreateCategoryGroup } from './interfaces/category.interface';
+import { ICreateSubcategoryGroup } from './interfaces/subcategory.interface';
+import { CategoriesRepository } from './repositories/categories.repository';
+import { SubcategoriesRepository } from './repositories/subcategories.repository';
+import { TopicsRepository } from './repositories/topics.repository';
 
 @Injectable()
 export class DictionariesService {
   constructor(
-    @InjectRepository(CategoryEntity)
-    private categoriesRepository: Repository<CategoryEntity>,
-    @InjectRepository(SubcategoryEntity)
-    private subcategoriesRepository: Repository<SubcategoryEntity>,
-    @InjectRepository(TopicEntity)
-    private topicsRepository: Repository<TopicEntity>,
-    private transactionService: TransactionService,
+    private categoriesRepository: CategoriesRepository,
+    private subcategoriesRepository: SubcategoriesRepository,
+    private topicsRepository: TopicsRepository,
   ) {}
 
-  async createCategoryGroup(dto: CreateCategoryGroupDto) {
-    return await this.transactionService.runInTransaction(
-      async (transactionEntityManger) => {
-        const categoriesRepository =
-          transactionEntityManger.getRepository(CategoryEntity);
-
-        return await categoriesRepository.save(dto);
-      },
-    );
+  async createCategoryGroup(dto: ICreateCategoryGroup) {
+    return this.categoriesRepository.createGroup(dto);
   }
 
   async createSubcategoriesGroup(
     categoryId: string,
-    dto: CreateSubcategoriesGroupDto,
+    dto: Omit<ICreateCategoryGroup, 'name'>,
   ) {
-    return await this.transactionService.runInTransaction(
-      async (transactionEntityManger) => {
-        const category = await this.findOneCategory(categoryId);
-        const subcategoriesRepository =
-          transactionEntityManger.getRepository(SubcategoryEntity);
-        const subcategories = dto.subcategories.map((item) => {
-          return subcategoriesRepository.create({ ...item, category });
-        });
+    const category = await this.categoriesRepository.getOneById(categoryId);
+    const subcategories = dto.subcategories.map((item) => ({
+      ...item,
+      category,
+    }));
 
-        await subcategoriesRepository.save(subcategories);
+    await this.subcategoriesRepository.createGroup(subcategories);
 
-        return subcategories.map((item) =>
-          plainToInstance(SubcategoryGroupResponseDto, item, {
-            excludeExtraneousValues: true,
-          }),
-        );
-      },
+    return subcategories.map((item) =>
+      plainToInstance(SubcategoryGroupResponseDto, item, {
+        excludeExtraneousValues: true,
+      }),
     );
   }
 
-  async createTopicsGroupDto(subcategoryId: string, dto: CreateTopicsGroupDto) {
-    return await this.transactionService.runInTransaction(
-      async (transactionEntityManger) => {
-        const subcategory = await this.findOneSubcategory(subcategoryId);
-        const topicsRepository =
-          transactionEntityManger.getRepository(TopicEntity);
-        const topics = dto.topics.map((item) => {
-          return topicsRepository.create({ ...item, subcategory });
-        });
-        await topicsRepository.save(topics);
+  async createTopicsGroupDto(
+    subcategoryId: string,
+    dto: Omit<ICreateSubcategoryGroup, 'name'>,
+  ) {
+    const subcategory =
+      await this.subcategoriesRepository.getOneById(subcategoryId);
+    const topics = dto.topics.map((item) => ({ ...item, subcategory }));
+    await this.topicsRepository.createGroup(topics);
 
-        return topics.map((item) =>
-          plainToInstance(TopicResponseDto, item, {
-            excludeExtraneousValues: true,
-          }),
-        );
-      },
+    return topics.map((item) =>
+      plainToInstance(TopicResponseDto, item, {
+        excludeExtraneousValues: true,
+      }),
     );
   }
 
   async findCategories(search: string) {
-    return await this.categoriesRepository.find({
-      where: {
-        name: ILike(`${search || ''}%`),
-      },
-    });
+    return await this.categoriesRepository.findAllBySearch(search);
   }
 
   async findSubcategories(categoryId: string, search: string) {
-    return await this.subcategoriesRepository.find({
-      where: {
-        category: { id: categoryId },
-        name: ILike(`${search || ''}%`),
-      },
-    });
+    return await this.subcategoriesRepository.findAllBySearchAndCategory(
+      categoryId,
+      search,
+    );
   }
 
   async findTopics(subcategoryId: string, search: string) {
-    return await this.topicsRepository.find({
-      where: {
-        subcategory: { id: subcategoryId },
-        name: ILike(`${search || ''}%`),
-      },
-    });
+    return await this.topicsRepository.findAllBySearchAndSubcategory(
+      subcategoryId,
+      search,
+    );
   }
 
   async findOneCategory(id: string) {
-    const category = await this.categoriesRepository.findOne({ where: { id } });
-    if (!category) {
-      throw new NotFoundException(`Category with id ${id} not found`);
-    }
-
-    return category;
+    return this.categoriesRepository.getOneById(id);
   }
 
   async findOneSubcategory(id: string) {
-    const subcategory = await this.subcategoriesRepository.findOne({
-      where: { id },
-    });
-    if (!subcategory) {
-      throw new NotFoundException(`Subcategory with id ${id} not found`);
-    }
-
-    return subcategory;
+    return this.subcategoriesRepository.getOneById(id);
   }
 
   async findOneTopic(id: string) {
-    const topic = await this.topicsRepository.findOne({
-      where: { id },
-    });
-    if (!topic) {
-      throw new NotFoundException(`Topic with id ${id} not found`);
-    }
-
-    return topic;
+    return this.topicsRepository.getOneById(id);
   }
 
   async deleteCategory(id: string) {
     await this.findOneCategory(id);
-    const result = await this.categoriesRepository.delete({ id });
+    const result = await this.categoriesRepository.deleteById(id);
 
     return !!result.affected;
   }
 
   async deleteSubcategory(id: string) {
     await this.findOneSubcategory(id);
-    const result = await this.subcategoriesRepository.delete({ id });
+    const result = await this.subcategoriesRepository.deleteById(id);
 
     return !!result.affected;
   }
 
   async deleteTopic(id: string) {
     await this.findOneTopic(id);
-    const result = await this.topicsRepository.delete({ id });
+    const result = await this.topicsRepository.deleteById(id);
 
     return !!result.affected;
   }
@@ -168,17 +115,17 @@ export class DictionariesService {
   async updateCategory({ id, name }: UpdateCategoryDto) {
     const category = await this.findOneCategory(id);
 
-    return await this.categoriesRepository.save({ ...category, name });
+    return await this.categoriesRepository.updateOne({ ...category, name });
   }
 
   async updateSubcategory({ id, name, categoryId }: UpdateSubcategoryDto) {
     const category = await this.findOneCategory(categoryId);
     const subcategory = await this.findOneSubcategory(id);
 
-    const updatedSubcategory = await this.subcategoriesRepository.save({
+    const updatedSubcategory = await this.subcategoriesRepository.updateOne({
       ...subcategory,
       name,
-      category,
+      categoryId: category.id,
     });
 
     return plainToInstance(SubcategoryResponseDto, updatedSubcategory, {
@@ -190,10 +137,10 @@ export class DictionariesService {
     const subcategory = await this.findOneSubcategory(subcategoryId);
     const topic = await this.findOneTopic(id);
 
-    const updatedTopic = await this.topicsRepository.save({
+    const updatedTopic = await this.topicsRepository.updateOne({
       ...topic,
       name,
-      subcategory,
+      subcategoryId: subcategory.id,
     });
 
     return plainToInstance(TopicResponseDto, updatedTopic, {

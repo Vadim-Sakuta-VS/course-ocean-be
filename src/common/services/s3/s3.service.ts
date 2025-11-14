@@ -7,13 +7,10 @@ import {
   S3Client,
 } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
-import {
-  ConsoleLogger,
-  Injectable,
-  InternalServerErrorException,
-} from '@nestjs/common';
+import { ConsoleLogger, Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
+import { S3ErrorException } from './exceptions/s3-error.exception';
 import { UploadObject } from './types';
 
 @Injectable()
@@ -100,9 +97,7 @@ export class S3Service {
       return { prefixId, fileKey };
     } catch (error) {
       this.logger.error(error);
-      throw new InternalServerErrorException(
-        `Failed to upload object: ${filename}`,
-      );
+      throw new S3ErrorException(`Failed to upload object: ${filename}`);
     }
   }
 
@@ -137,7 +132,7 @@ export class S3Service {
       };
     } catch (error) {
       this.logger.error(error);
-      throw new InternalServerErrorException(
+      throw new S3ErrorException(
         `Failed to generate upload url for object: ${filename}`,
       );
     }
@@ -165,9 +160,7 @@ export class S3Service {
       return true;
     } catch (error) {
       this.logger.error(error);
-      throw new InternalServerErrorException(
-        `Failed to move object: ${fileKey}`,
-      );
+      throw new S3ErrorException(`Failed to move object: ${fileKey}`);
     }
   }
 
@@ -201,9 +194,7 @@ export class S3Service {
       return true;
     } catch (error) {
       this.logger.error(error);
-      throw new InternalServerErrorException(
-        `Failed to delete object: ${fileKey}`,
-      );
+      throw new S3ErrorException(`Failed to delete object: ${fileKey}`);
     }
   }
 
@@ -217,7 +208,7 @@ export class S3Service {
       return await getSignedUrl(this.s3Client, command, { expiresIn: ttl });
     } catch (error) {
       this.logger.error(error);
-      throw new InternalServerErrorException(
+      throw new S3ErrorException(
         `Failed to generate view url for object: ${fileKey}`,
       );
     }

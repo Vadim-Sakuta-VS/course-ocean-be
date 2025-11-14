@@ -1,60 +1,53 @@
-import {
-  ForbiddenException,
-  Injectable,
-  NotFoundException,
-} from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { ForbiddenException, Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
-import { Repository } from 'typeorm';
-import { CreateReviewDto } from './dto/create-review.dto';
-import { PatchReviewDto } from './dto/patch-review.dto';
 import { ReviewResponseDto } from './dto/review-response.dto';
-import { ReviewsFilterDto } from './dto/reviews-filter.dto';
-import {
-  Reaction,
-  ReviewReactionEntity,
-} from './entities/review-reaction.entity';
+import { Reaction } from './entities/review-reaction.entity';
 import { ReviewEntity } from './entities/review.entity';
+import { IReactionQuery } from './interfaces/reaction-query.interface';
+import { ICreateReview, IReview } from './interfaces/review.interface';
+import { IReviewsFilter } from './interfaces/reviews-filter.interface';
+import { ReviewReactionsRepository } from './repositories/review-reactions.repository';
+import { ReviewsRepository } from './repositories/reviews.repository';
+import { DeletedIdResponseDto } from '../common/dto/deleted-id-response.dto';
 import { PageableContentDto } from '../common/dto/pageable-content.dto';
 import { TransactionService } from '../common/services/transaction.service';
+import { CoursesService } from '../cources/courses.service';
 import { UserRole } from '../users/entities/user.entity';
 
 @Injectable()
 export class ReviewsService {
   constructor(
-    @InjectRepository(ReviewEntity)
-    private readonly reviewsRepository: Repository<ReviewEntity>,
-    @InjectRepository(ReviewReactionEntity)
-    private readonly reviewReactionsRepository: Repository<ReviewReactionEntity>,
+    private readonly reviewsRepository: ReviewsRepository,
+    private readonly reviewReactionsRepository: ReviewReactionsRepository,
+    private readonly coursesService: CoursesService,
     private readonly transactionService: TransactionService,
   ) {}
 
   async create(
     userId: string,
-    { textContent, rating, courseId }: CreateReviewDto,
+    { textContent, rating, courseId }: ICreateReview,
   ) {
-    const { id } = await this.reviewsRepository.save({
+    await this.coursesService.findOneCourse(courseId);
+    const { id } = await this.reviewsRepository.create(userId, {
       textContent,
       rating,
-      author: { id: userId },
-      course: { id: courseId },
+      courseId,
     });
-    const review = await this.findOneById(id);
+    const review = await this.reviewsRepository.getOneById(id, {
+      includeAuthor: true,
+    });
 
     return this.prepareReviewResponse(review);
   }
 
   async findAll(
-    { courseId, page, size }: ReviewsFilterDto,
+    { courseId, page, size }: IReviewsFilter,
     userId?: string,
   ): Promise<PageableContentDto<ReviewResponseDto>> {
     const [reviews, total] = await this.reviewsRepository.findAndCount({
-      where: { courseId },
-      take: size,
-      skip: size * page,
-      order: {
-        createdAt: 'DESC',
-      },
+      courseId,
+      page,
+      size,
     });
 
     return {
@@ -68,28 +61,14 @@ export class ReviewsService {
     };
   }
 
-  private async findOneById(id: string) {
-    const review = await this.reviewsRepository.findOne({
-      where: { id },
-      relations: { author: true },
-    });
-    if (!review) {
-      throw new NotFoundException(`Review with id ${id} not found`);
-    }
-
-    return review;
-  }
-
-  private async getUserReaction(userId: string, reviewId: string) {
-    return this.reviewReactionsRepository.findOne({
-      where: { authorId: userId, reviewId },
-    });
-  }
-
-  async patch(userId: string, reviewId: string, dto: PatchReviewDto) {
-    const review = await this.findOneById(reviewId);
+  async patch(
+    userId: string,
+    reviewId: string,
+    dto: Partial<Pick<IReview, 'textContent' | 'rating'>>,
+  ) {
+    const review = await this.reviewsRepository.getOneById(reviewId);
     this.checkUserPermission(review, userId);
-    const updatedReview = await this.reviewsRepository.save({
+    const updatedReview = await this.reviewsRepository.updateOne({
       ...review,
       ...dto,
     });
@@ -97,77 +76,84 @@ export class ReviewsService {
     return this.prepareReviewResponse(updatedReview, userId);
   }
 
-  async delete(userId: string, userRoles: UserRole[], reviewId: string) {
-    const review = await this.findOneById(reviewId);
+  async delete(
+    userId: string,
+    userRoles: UserRole[],
+    reviewId: string,
+  ): Promise<DeletedIdResponseDto> {
+    const review = await this.reviewsRepository.getOneById(reviewId);
     this.checkUserPermission(review, userId, userRoles);
-    const result = await this.reviewsRepository.delete({ id: reviewId });
+    const result = await this.reviewsRepository.deleteOneById(reviewId);
 
-    return !!result.affected;
+    return {
+      deletedId: result.affected ? reviewId : null,
+    };
   }
 
-  async setLike(userId: string, reviewId: string, isCancel: boolean) {
+  async setReaction(
+    userId: string,
+    reviewId: string,
+    { type, isCancel }: IReactionQuery,
+  ) {
     return this.transactionService.runInTransaction(
       async (transactionEntityManger) => {
-        const reviewsRepository =
-          transactionEntityManger.getRepository(ReviewEntity);
-        const reviewReactionsRepository =
-          transactionEntityManger.getRepository(ReviewReactionEntity);
-        await this.findOneById(reviewId);
-        const userReaction = await this.getUserReaction(userId, reviewId);
-        if (isCancel && userReaction?.type === Reaction.LIKE) {
-          await reviewsRepository.decrement({ id: reviewId }, 'likes', 1);
-          await reviewReactionsRepository.delete({
-            authorId: userId,
+        const review = await this.reviewsRepository.getOneById(reviewId);
+        const userReaction =
+          await this.reviewReactionsRepository.findUserReaction(
+            userId,
             reviewId,
-          });
-
-          return true;
-        } else if (userReaction?.type !== Reaction.LIKE) {
-          if (userReaction?.type === Reaction.DISLIKE) {
-            await reviewsRepository.decrement({ id: reviewId }, 'dislikes', 1);
-          }
-          await reviewsRepository.increment({ id: reviewId }, 'likes', 1);
-          await reviewReactionsRepository.save({
-            authorId: userId,
-            reviewId,
-            type: Reaction.LIKE,
-          });
-
-          return true;
-        }
-
-        return false;
-      },
-    );
-  }
-
-  async setDislike(userId: string, reviewId: string, isCancel: boolean) {
-    return this.transactionService.runInTransaction(
-      async (transactionEntityManger) => {
-        const reviewsRepository =
-          transactionEntityManger.getRepository(ReviewEntity);
-        const reviewReactionsRepository =
-          transactionEntityManger.getRepository(ReviewReactionEntity);
-        await this.findOneById(reviewId);
-        const userReaction = await this.getUserReaction(userId, reviewId);
-        if (isCancel && userReaction?.type === Reaction.DISLIKE) {
-          await reviewsRepository.decrement({ id: reviewId }, 'dislikes', 1);
-          await reviewReactionsRepository.delete({
-            authorId: userId,
-            reviewId,
-          });
-
-          return true;
-        } else if (userReaction?.type !== Reaction.DISLIKE) {
+          );
+        if (isCancel && userReaction?.type === type) {
           if (userReaction?.type === Reaction.LIKE) {
-            await reviewsRepository.decrement({ id: reviewId }, 'likes', 1);
+            await this.reviewsRepository.decrementLikes(
+              reviewId,
+              transactionEntityManger,
+            );
+          } else {
+            await this.reviewsRepository.decrementDislikes(
+              reviewId,
+              transactionEntityManger,
+            );
           }
-          await reviewsRepository.increment({ id: reviewId }, 'dislikes', 1);
-          await reviewReactionsRepository.save({
-            authorId: userId,
+
+          await this.reviewReactionsRepository.deleteUserReaction(
+            userId,
             reviewId,
-            type: Reaction.DISLIKE,
-          });
+            transactionEntityManger,
+          );
+
+          return true;
+        } else if (userReaction?.type !== type) {
+          if (type === Reaction.DISLIKE) {
+            if (review.likes) {
+              await this.reviewsRepository.decrementLikes(
+                reviewId,
+                transactionEntityManger,
+              );
+            }
+            await this.reviewsRepository.incrementDislikes(
+              reviewId,
+              transactionEntityManger,
+            );
+          } else {
+            if (review.dislikes) {
+              await this.reviewsRepository.decrementDislikes(
+                reviewId,
+                transactionEntityManger,
+              );
+            }
+            await this.reviewsRepository.incrementLikes(
+              reviewId,
+              transactionEntityManger,
+            );
+          }
+
+          await this.reviewReactionsRepository.createOrUpdate(
+            userId,
+            reviewId,
+            type,
+            transactionEntityManger,
+          );
 
           return true;
         }
@@ -190,7 +176,10 @@ export class ReviewsService {
   async prepareReviewResponse(review: ReviewEntity, userId?: string) {
     let userReaction: Reaction | undefined;
     if (userId) {
-      const reaction = await this.getUserReaction(userId, review.id);
+      const reaction = await this.reviewReactionsRepository.findUserReaction(
+        userId,
+        review.id,
+      );
       userReaction = reaction?.type;
     }
     const res = plainToInstance(ReviewResponseDto, review, {

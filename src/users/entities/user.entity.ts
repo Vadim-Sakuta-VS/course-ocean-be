@@ -77,7 +77,7 @@ export class UserEntity {
     nullable: true,
     default: 'NULL',
   })
-  avatarUrl: string;
+  avatarUrl: string | null;
 
   @Exclude()
   @Column({

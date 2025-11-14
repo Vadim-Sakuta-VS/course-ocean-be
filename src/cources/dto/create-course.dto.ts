@@ -17,7 +17,7 @@ import {
 } from 'class-validator';
 import { IsDateRange } from '../../common/decorators/is-date-range.decorator';
 import { IsElementOrderUnique } from '../../common/decorators/is-element-order-unique.decorator';
-import { CourseLevel, Language } from '../entities/course.entity';
+import { CourseLevel, Language } from '../interfaces/course.interface';
 
 export class CreateLectureContentDto {
   @IsOptional()
@@ -77,13 +77,11 @@ export class CreateCourseDto {
   @IsOptional()
   @IsString({ each: true })
   @IsArray()
-  @Transform(({ value }: { value: string[] }) => (!value ? [] : value))
   learningSkills?: string[];
 
   @IsOptional()
   @IsString({ each: true })
   @IsArray()
-  @Transform(({ value }: { value: string[] }) => (!value ? [] : value))
   requirements?: string[];
 
   @IsOptional()

@@ -29,7 +29,7 @@ export class UserSessionsEntity {
   expiresAt: Date;
 
   @Column({ name: 'ip_address', type: 'inet', nullable: true })
-  ipAddress: string;
+  ipAddress: string | null;
 
   @Column({ name: 'user_agent_info', type: 'jsonb', nullable: true })
   userAgentInfo: IResult;

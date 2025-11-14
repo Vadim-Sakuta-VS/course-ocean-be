@@ -38,7 +38,7 @@ export class UserCourseEntity {
 
   @Expose()
   @Column({ type: 'text', nullable: true })
-  comment: string;
+  comment: string | null;
 
   @Expose()
   @Column({

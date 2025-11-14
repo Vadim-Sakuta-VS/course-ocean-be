@@ -5,6 +5,7 @@ import { CartService } from './cart.service';
 import { CartOrdersEntity } from './entities/cart-orders.entity';
 import { CoursesModule } from '../cources/cources.module';
 import { UsersModule } from '../users/users.module';
+import { CartOrdersRepository } from './repositories/cart-orders.repository';
 
 @Module({
   imports: [
@@ -13,7 +14,7 @@ import { UsersModule } from '../users/users.module';
     CoursesModule,
   ],
   controllers: [CartController],
-  providers: [CartService],
+  providers: [CartService, CartOrdersRepository],
   exports: [CartService],
 })
 export class CartModule {}

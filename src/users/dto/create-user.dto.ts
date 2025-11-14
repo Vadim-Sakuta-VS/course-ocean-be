@@ -6,8 +6,9 @@ import {
   MinLength,
 } from 'class-validator';
 import { PASSWORD_REGEXP } from '../../auth/constants';
+import { ICreateUser } from '../interfaces/create-user.interface';
 
-export class CreateUserDto {
+export class CreateUserDto implements ICreateUser {
   @IsString()
   @MinLength(2)
   @MaxLength(100)

@@ -1,6 +1,6 @@
 import { FindOptionsRelations } from 'typeorm';
-import { CourseDurationFilter } from '../dto/search-query.dto';
 import { CourseEntity } from '../entities/course.entity';
+import { CourseDurationFilter } from '../interfaces/courses-filter.interface';
 
 export const COURSE_DURATION_FILTER_SQL_MAP: Record<
   CourseDurationFilter,
