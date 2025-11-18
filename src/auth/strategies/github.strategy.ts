@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
+import { Request } from 'express';
 import { Profile, Strategy } from 'passport-github2';
 import { AuthProvider } from '../entities/user-providers.entity';
 
@@ -14,10 +15,16 @@ export class GithubStrategy extends PassportStrategy(Strategy, 'github') {
       )}`,
       callbackURL: `${configService.getOrThrow<string>('APP_URL')}/auth/github/callback`,
       scope: ['read:user', 'user:email'],
+      passReqToCallback: true,
     });
   }
 
-  validate(_: string, __: string, profile: Profile): Express.User {
+  validate(
+    req: Request,
+    _: string,
+    __: string,
+    profile: Profile,
+  ): Express.User {
     const { id, emails, photos, displayName, username } = profile;
     if (!emails?.[0].value) {
       throw new UnauthorizedException();

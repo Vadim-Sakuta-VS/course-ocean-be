@@ -12,11 +12,11 @@ import bcrypt from 'bcrypt';
 import ms from 'ms';
 import { EntityManager } from 'typeorm';
 import type { Request, Response } from 'express';
+import { ACCESS_TOKEN_COOKIE_KEY, USER_SESSION_COOKIE_KEY } from './constants';
 import { verifyEmailTemplate } from '../common/constants/email-templates';
 import { TransactionService } from '../common/services/transaction.service';
 import { __IS_PROD__ } from '../config/constants';
 import { MailerService } from '../mailer/mailer.service';
-import { AccessTokenResponseDto } from './dto/access-token-response.dto';
 import { UserEntity } from '../users/entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { LoginDto } from './dto/login.dto';
@@ -24,12 +24,14 @@ import { IAuthUserViaProvider } from './interfaces/auth-user-via-provider.interf
 import { UserProvidersRepository } from './repositories/user-providers.repository';
 import { UserSessionsRepository } from './repositories/user-sessions.repository';
 import { JwtPayload, JwtTokenType } from './types';
+import { SuccessResponseDto } from '../common/dto/success-response.dto';
 import { getClientMetadata } from '../common/utils/clientMetadata';
 import { ICreateUser } from '../users/interfaces/create-user.interface';
 
 @Injectable()
 export class AuthService {
-  public static USER_SESSION_COOKIE_KEY = 'sessionId';
+  public static USER_SESSION_COOKIE_KEY = USER_SESSION_COOKIE_KEY;
+  public static ACCESS_TOKEN_COOKIE_KEY = ACCESS_TOKEN_COOKIE_KEY;
   private static JWT_ACCESS_TOKEN_EXPIRATION_TIME: ms.StringValue;
   private static JWT_REFRESH_TOKEN_EXPIRATION_TIME: ms.StringValue;
   private static EMAIL_VERIFICATION_TOKEN_EXPIRATION_TIME: ms.StringValue;
@@ -73,7 +75,7 @@ export class AuthService {
     req: Request,
     res: Response,
     { firstName, lastName, email, password }: ICreateUser,
-  ): Promise<AccessTokenResponseDto> {
+  ): Promise<SuccessResponseDto> {
     return this.transactionService.runInTransaction(
       async (transactionEntityManger) => {
         const hashedPassword = await this.getHashString(password);
@@ -96,9 +98,7 @@ export class AuthService {
           this.logger.error('Failed to request email verification', err);
         });
 
-        return {
-          accessToken: tokens.accessToken,
-        };
+        return { success: !!tokens.accessToken };
       },
     );
   }
@@ -115,7 +115,7 @@ export class AuthService {
       providerType,
       providerId,
     }: IAuthUserViaProvider,
-  ): Promise<AccessTokenResponseDto> {
+  ): Promise<SuccessResponseDto> {
     return await this.transactionService.runInTransaction(
       async (transactionManger) => {
         let user = await this.usersService.findOneByEmail(email, {
@@ -173,9 +173,7 @@ export class AuthService {
           transactionManger,
         );
 
-        return {
-          accessToken: tokens.accessToken,
-        };
+        return { success: !!tokens.accessToken };
       },
     );
   }
@@ -184,7 +182,7 @@ export class AuthService {
     req: Request,
     res: Response,
     { email, password }: LoginDto,
-  ): Promise<AccessTokenResponseDto> {
+  ): Promise<SuccessResponseDto> {
     const user = await this.usersService.getOneByEmail(email);
     const isPasswordsEqual = await bcrypt.compare(password, user.password);
     if (!isPasswordsEqual) {
@@ -200,9 +198,7 @@ export class AuthService {
     }
     const tokens = await this.createUserSession(req, res, user);
 
-    return {
-      accessToken: tokens.accessToken,
-    };
+    return { success: !!tokens.accessToken };
   }
 
   private async createUserSession(
@@ -230,6 +226,11 @@ export class AuthService {
       secure: __IS_PROD__,
       maxAge: ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
     });
+    res.cookie(AuthService.ACCESS_TOKEN_COOKIE_KEY, tokens.accessToken, {
+      httpOnly: true,
+      secure: __IS_PROD__,
+      maxAge: ms(AuthService.JWT_ACCESS_TOKEN_EXPIRATION_TIME),
+    });
 
     return tokens;
   }
@@ -247,6 +248,7 @@ export class AuthService {
         );
       }
       res.clearCookie(AuthService.USER_SESSION_COOKIE_KEY);
+      res.clearCookie(AuthService.ACCESS_TOKEN_COOKIE_KEY);
 
       return { success: true };
     } catch (error) {
@@ -255,7 +257,10 @@ export class AuthService {
     }
   }
 
-  async refresh(userSessionId: string): Promise<AccessTokenResponseDto> {
+  async refresh(
+    res: Response,
+    userSessionId: string,
+  ): Promise<SuccessResponseDto> {
     if (!userSessionId) {
       throw new UnauthorizedException();
     }
@@ -267,8 +272,13 @@ export class AuthService {
       throw new UnauthorizedException();
     }
     const tokens = await this.generateTokens(userSession.user);
+    res.cookie(AuthService.ACCESS_TOKEN_COOKIE_KEY, tokens.accessToken, {
+      httpOnly: true,
+      secure: __IS_PROD__,
+      maxAge: ms(AuthService.JWT_ACCESS_TOKEN_EXPIRATION_TIME),
+    });
 
-    return { accessToken: tokens.accessToken };
+    return { success: !!tokens.accessToken };
   }
 
   private async requestEmailVerification(

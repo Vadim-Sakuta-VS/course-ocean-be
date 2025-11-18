@@ -77,3 +77,8 @@ $ npm run start:prod
 | `CLOUDFLARE_R2_PRIVATE_BUCKET`             | Cloudflare bucket name for public content                         | -       |    ✅     |
 | `CLOUDFLARE_R2_ENDPOINT`                   | Cloudflare API endpoint                                           | -       |    ✅     |
 | `CLOUDFLARE_R2_PUBLIC_DOMAIN`              | Public domain connected to public bucket                          | -       |    ✅     |
+| `REDIS_PORT`                               | Redis port                                                        | -       |    ✅     |
+| `REDIS_HOST`                               | Redis host                                                        | -       |    ✅     |
+| `REDIS_PASSWORD`                           | Redis password                                                    | -       |    ✅     |
+| `SESSION_SECRET`                           | Session secret                                                    | -       |    ✅     |
+| `SESSION_MAX_AGE`                          | Session life time in milliseconds                                 | -       |    ✅     |

@@ -1,3 +1,4 @@
+import 'express-session';
 import { AuthProvider } from '../src/auth/entities/user-providers.entity';
 import { UserRole } from '../src/users/entities/user.entity';
 
@@ -18,5 +19,12 @@ declare global {
     interface Request {
       user?: User;
     }
+  }
+}
+
+declare module 'express-session' {
+  interface SessionData {
+    oauthState?: string;
+    oauthRedirectUrl?: string;
   }
 }

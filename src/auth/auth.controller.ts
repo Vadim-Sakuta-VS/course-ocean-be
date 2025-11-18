@@ -2,10 +2,12 @@ import {
   Body,
   ConsoleLogger,
   Controller,
+  ForbiddenException,
   Get,
   HttpCode,
   HttpStatus,
   Post,
+  Query,
   Req,
   Res,
   UnauthorizedException,
@@ -13,16 +15,18 @@ import {
 } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { ApiBearerAuth } from '@nestjs/swagger';
-import type { Request, Response } from 'express';
+import passport from 'passport';
+import { v4 as uuidv4 } from 'uuid';
+import type { NextFunction, Request, Response } from 'express';
 import { AuthService } from './auth.service';
 import { Public } from './decorators/public.decorator';
 import { Roles } from './decorators/roles.decorator';
-import { AccessTokenResponseDto } from './dto/access-token-response.dto';
 import { CreateUserProviderDto } from './dto/create-user-provider.dto';
 import { LoginDto } from './dto/login.dto';
 import { GithubAuthGuard } from './guards/github-auth.guard';
 import { GoogleAuthGuard } from './guards/google-auth.guard';
 import { Cookies } from '../common/decorators/cookies.decorator';
+import { SuccessResponseDto } from '../common/dto/success-response.dto';
 import { CreateUserDto } from '../users/dto/create-user.dto';
 import { UserRole } from '../users/entities/user.entity';
 
@@ -46,7 +50,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
     @Body() createUserDto: CreateUserDto,
-  ): Promise<AccessTokenResponseDto> {
+  ): Promise<SuccessResponseDto> {
     return this.authService.signUp(req, res, createUserDto);
   }
 
@@ -62,7 +66,7 @@ export class AuthController {
     @Req() req: Request,
     @Res({ passthrough: true }) res: Response,
     @Body() loginDto: LoginDto,
-  ): Promise<AccessTokenResponseDto> {
+  ): Promise<SuccessResponseDto> {
     return this.authService.login(req, res, loginDto);
   }
 
@@ -91,15 +95,28 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   @Post('/refresh')
   refresh(
+    @Res({ passthrough: true }) res: Response,
     @Cookies(AuthService.USER_SESSION_COOKIE_KEY) userSessionId: string,
-  ): Promise<AccessTokenResponseDto> {
-    return this.authService.refresh(userSessionId);
+  ): Promise<SuccessResponseDto> {
+    return this.authService.refresh(res, userSessionId);
   }
 
   @Public()
-  @UseGuards(GoogleAuthGuard)
   @Get('/google')
-  google() {}
+  google(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('redirectUrl') redirectUrl: string,
+  ) {
+    req.session.oauthState = uuidv4();
+    req.session.oauthRedirectUrl = redirectUrl;
+    const authenticator = passport.authenticate('google', {
+      state: req.session.oauthState,
+      scope: ['email', 'profile'],
+    }) as (req: Request, res: Response, next?: NextFunction) => void;
+
+    authenticator(req, res);
+  }
 
   @Public()
   @UseGuards(GoogleAuthGuard)
@@ -109,9 +126,21 @@ export class AuthController {
   }
 
   @Public()
-  @UseGuards(GithubAuthGuard)
   @Get('/github')
-  github() {}
+  github(
+    @Req() req: Request,
+    @Res() res: Response,
+    @Query('redirectUrl') redirectUrl: string,
+  ) {
+    req.session.oauthState = uuidv4();
+    req.session.oauthRedirectUrl = redirectUrl;
+    const authenticator = passport.authenticate('github', {
+      state: req.session.oauthState,
+      scope: ['read:user', 'user:email'],
+    }) as (req: Request, res: Response, next?: NextFunction) => void;
+
+    authenticator(req, res);
+  }
 
   @Public()
   @UseGuards(GithubAuthGuard)
@@ -125,15 +154,27 @@ export class AuthController {
       if (!req.user) {
         throw new UnauthorizedException();
       }
-      const token = await this.authService.signUpWithProvider(
+      if (req.query.state !== req.session.oauthState) {
+        throw new ForbiddenException();
+      }
+      await this.authService.signUpWithProvider(
         req,
         res,
         req.user as CreateUserProviderDto,
       );
-
-      res.redirect(
-        `${this.configService.getOrThrow<string>('EXTERNAL_AUTH_UI_SUCCESS_URL')}?type=${req.user.providerType}&token=${token.accessToken}`,
+      const fallbackSuccessUrl = new URL(
+        `${this.configService.getOrThrow<string>('EXTERNAL_AUTH_UI_SUCCESS_URL')}?type=${req.user.providerType}`,
       );
+      const stateRedirectUrl = new URL(
+        req.session?.oauthRedirectUrl || fallbackSuccessUrl,
+      );
+      const redirectUrl =
+        stateRedirectUrl.host === fallbackSuccessUrl.host
+          ? stateRedirectUrl.href
+          : fallbackSuccessUrl.href;
+      req.session.destroy(() => {});
+
+      res.redirect(redirectUrl);
     } catch (error) {
       this.logger.error(error);
       res.redirect(

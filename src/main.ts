@@ -5,8 +5,9 @@ import { NestExpressApplication } from '@nestjs/platform-express';
 import cookieParser from 'cookie-parser';
 import { AppModule } from './app.module';
 import { AllExceptionsFilter } from './common/exception-filter';
-import { setupSwagger } from './config/swagger.config';
 import { __IS_PROD__ } from './config/constants';
+import { setupSession } from './config/session.config';
+import { setupSwagger } from './config/swagger.config';
 
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
@@ -15,7 +16,7 @@ async function bootstrap() {
     app.enableCors({ origin: true });
   }
   const configService = app.get(ConfigService);
-  app.use(cookieParser());
+  app.use(cookieParser(configService.getOrThrow<string>('SESSION_SECRET')));
   app.useGlobalPipes(
     new ValidationPipe({
       whitelist: true,
@@ -23,7 +24,10 @@ async function bootstrap() {
   );
   const httpAdapterHost = app.get(HttpAdapterHost);
   app.useGlobalFilters(new AllExceptionsFilter(httpAdapterHost));
+  await setupSession(app, configService);
+
   setupSwagger(app);
+
   await app.listen(configService.get('PORT') ?? 5000);
 }
 bootstrap();

@@ -1,6 +1,7 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { PassportStrategy } from '@nestjs/passport';
+import { Request } from 'express';
 import { Profile, Strategy, VerifyCallback } from 'passport-google-oauth20';
 import { AuthProvider } from '../entities/user-providers.entity';
 
@@ -14,10 +15,17 @@ export class GoogleStrategy extends PassportStrategy(Strategy, 'google') {
       ),
       callbackURL: `${configService.getOrThrow<string>('APP_URL')}/auth/google/callback`,
       scope: ['email', 'profile'],
+      passReqToCallback: true,
     });
   }
 
-  validate(_: string, __: string, profile: Profile, done: VerifyCallback) {
+  validate(
+    req: Request,
+    _: string,
+    __: string,
+    profile: Profile,
+    done: VerifyCallback,
+  ) {
     const { id, name, emails, photos } = profile;
     if (!emails?.[0].value || !name) {
       throw new UnauthorizedException();
