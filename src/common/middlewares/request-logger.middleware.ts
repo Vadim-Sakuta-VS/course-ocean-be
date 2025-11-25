@@ -48,6 +48,9 @@ export class RequestLoggerMiddleware implements NestMiddleware {
     this.logger.debug(
       `Query: ${JSON.stringify(this.sanitizeData(req.query), null, 2)}`,
     );
+    this.logger.debug(
+      `Cookie: ${JSON.stringify(this.sanitizeData(req.cookies), null, 2)}`,
+    );
 
     res.on('finish', () => {
       const { statusCode } = res;

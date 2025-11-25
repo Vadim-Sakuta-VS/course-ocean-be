@@ -25,7 +25,7 @@ export class UserEntity {
   @PrimaryGeneratedColumn('uuid')
   id: string;
 
-  @Exclude()
+  @Expose()
   @Column({
     type: 'enum',
     array: true,

@@ -1,5 +1,7 @@
 import { ConflictException, Injectable } from '@nestjs/common';
+import { plainToInstance } from 'class-transformer';
 import { EntityManager } from 'typeorm';
+import { UserProfileResponseDto } from './dto/user-profile-response.dto';
 import { UserEntity } from './entities/user.entity';
 import { ICreateUserExternal } from './interfaces/create-user-external.interface';
 import { ICreateUser } from './interfaces/create-user.interface';
@@ -65,5 +67,17 @@ export class UsersService {
     });
 
     return user.emailVerificationToken === token;
+  }
+
+  async getProfile(userId: string) {
+    const user = await this.usersRepository.getOneById(userId);
+
+    return this.prepareProfileResponse(user);
+  }
+
+  prepareProfileResponse(user: UserEntity) {
+    return plainToInstance(UserProfileResponseDto, user, {
+      excludeExtraneousValues: true,
+    });
   }
 }

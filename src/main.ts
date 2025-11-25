@@ -13,7 +13,10 @@ async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
   app.set('query parser', 'extended');
   if (!__IS_PROD__) {
-    app.enableCors({ origin: true });
+    app.enableCors({
+      origin: true,
+      credentials: true,
+    });
   }
   const configService = app.get(ConfigService);
   app.use(cookieParser(configService.getOrThrow<string>('SESSION_SECRET')));
