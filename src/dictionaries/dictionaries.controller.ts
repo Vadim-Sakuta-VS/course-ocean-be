@@ -35,6 +35,15 @@ export class DictionariesController {
   constructor(private dictionariesService: DictionariesService) {}
 
   /**
+   * Get all dictionaries
+   */
+  @Public()
+  @Get()
+  getAllDictionaries(): Promise<CategoryGroupResponseDto[]> {
+    return this.dictionariesService.getAllDictionaries();
+  }
+
+  /**
    * Create new category with subcategories and topics
    *
    * @throws {400} Bad request

@@ -1,5 +1,6 @@
 import { ConsoleLogger, Injectable, NestMiddleware } from '@nestjs/common';
 import { NextFunction, Request, Response } from 'express';
+import { v4 as uuid } from 'uuid';
 import { getClientMetadata } from '../utils/clientMetadata';
 
 @Injectable()
@@ -39,8 +40,9 @@ export class RequestLoggerMiddleware implements NestMiddleware {
     const { method, originalUrl } = req;
     const { ipAddress, userAgentInfo } = getClientMetadata(req);
 
+    const requestId = uuid();
     this.logger.log(
-      `${method} ${originalUrl} - ${userAgentInfo.ua} ${ipAddress}`,
+      `[Request ${requestId} START]: ${method} ${originalUrl} - ${userAgentInfo.ua} ${ipAddress}`,
     );
     this.logger.debug(
       `Body: ${JSON.stringify(this.sanitizeData(req.body), null, 2)}`,
@@ -57,7 +59,7 @@ export class RequestLoggerMiddleware implements NestMiddleware {
       const contentLength = res.get('content-length');
       const duration = Date.now() - startTime;
       this.logger.log(
-        `${method} ${originalUrl} ${statusCode} ${contentLength || 0}B - ${duration}ms`,
+        `[Request ${requestId} FINISH]: ${method} ${originalUrl} ${statusCode} ${contentLength || 0}B - ${duration}ms`,
       );
     });
     next();

@@ -1,6 +1,8 @@
 import { Injectable } from '@nestjs/common';
 import { plainToInstance } from 'class-transformer';
 import {
+  CategoryGroupResponseDto,
+  CategoryResponseDto,
   SubcategoryGroupResponseDto,
   SubcategoryResponseDto,
   TopicResponseDto,
@@ -145,6 +147,32 @@ export class DictionariesService {
 
     return plainToInstance(TopicResponseDto, updatedTopic, {
       excludeExtraneousValues: true,
+    });
+  }
+
+  async getAllDictionaries() {
+    const categories = await this.categoriesRepository.findAll();
+
+    return categories.map((category) => {
+      const subcategories = category.subcategories.map((subcategory) => {
+        const topics = subcategory.topics.map((topic) =>
+          plainToInstance(TopicResponseDto, topic, {
+            excludeExtraneousValues: true,
+          }),
+        );
+
+        return plainToInstance(
+          SubcategoryGroupResponseDto,
+          { ...subcategory, topics },
+          { excludeExtraneousValues: true },
+        );
+      });
+
+      return plainToInstance(
+        CategoryGroupResponseDto,
+        { ...category, subcategories },
+        { excludeExtraneousValues: true },
+      );
     });
   }
 }

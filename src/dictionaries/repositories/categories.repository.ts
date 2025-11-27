@@ -40,4 +40,10 @@ export class CategoriesRepository extends BaseRepository<CategoryEntity> {
   findAllBySearch(search: string) {
     return this.repository.find({ where: { name: ILike(`${search || ''}%`) } });
   }
+
+  findAll() {
+    return this.repository.find({
+      relations: { subcategories: { topics: true } },
+    });
+  }
 }

@@ -224,11 +224,13 @@ export class AuthService {
     res.cookie(AuthService.USER_SESSION_COOKIE_KEY, userSession.id, {
       httpOnly: true,
       secure: __IS_PROD__,
+      sameSite: __IS_PROD__ ? 'none' : 'lax',
       maxAge: ms(AuthService.JWT_REFRESH_TOKEN_EXPIRATION_TIME),
     });
     res.cookie(AuthService.ACCESS_TOKEN_COOKIE_KEY, tokens.accessToken, {
       httpOnly: true,
       secure: __IS_PROD__,
+      sameSite: __IS_PROD__ ? 'none' : 'lax',
       maxAge: ms(AuthService.JWT_ACCESS_TOKEN_EXPIRATION_TIME),
     });
 
@@ -275,6 +277,7 @@ export class AuthService {
     res.cookie(AuthService.ACCESS_TOKEN_COOKIE_KEY, tokens.accessToken, {
       httpOnly: true,
       secure: __IS_PROD__,
+      sameSite: __IS_PROD__ ? 'none' : 'lax',
       maxAge: ms(AuthService.JWT_ACCESS_TOKEN_EXPIRATION_TIME),
     });
 
