@@ -271,6 +271,7 @@ export class AuthService {
       { includeUser: true },
     );
     if (!userSession) {
+      res.clearCookie(AuthService.USER_SESSION_COOKIE_KEY);
       throw new UnauthorizedException();
     }
     const tokens = await this.generateTokens(userSession.user);
